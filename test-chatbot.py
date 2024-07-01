@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from langchain_openai import ChatOpenAI
-from langchain.chains import create_retrieval_chain
+from langchain.chains import create_retrieval_chain, create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain.memory import ConversationBufferMemory
@@ -9,12 +9,13 @@ from langchain_voyageai import VoyageAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain.schema import HumanMessage
 from urllib.parse import urlparse
 import boto3
 import uuid
 import warnings
-
 import pinecone
+from pinecone import Pinecone, ServerlessSpec
 
 # 忽略所有警告
 warnings.filterwarnings("ignore")
@@ -43,10 +44,14 @@ embedding_function = VoyageAIEmbeddings(
 
 # 初始化Pinecone向量存储
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-pinecone.init(api_key=PINECONE_API_KEY)
+pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+
+# 检查索引是否存在，如果不存在则创建它
+index_name = 'test'
+
 vector_store = PineconeVectorStore.from_existing_index(
     embedding=embedding_function,
-    index_name="test"
+    index_name=index_name
 )
 retriever = vector_store.as_retriever()
 
