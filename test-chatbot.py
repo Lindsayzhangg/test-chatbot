@@ -3,12 +3,19 @@ from langchain_voyageai import VoyageAIEmbeddings
 import os
 import boto3
 from urllib.parse import urlparse
+from pinecone import Pinecone
 import pinecone
 from langchain_openai import ChatOpenAI
-from langchain.chains import LLMChain
+import openai
+from langchain.chains import LLMChain, RetrievalQA
+import time
+import re
+from langchain_pinecone import PineconeVectorStore
+from langchain.memory import ConversationBufferMemory
 from langchain.schema import HumanMessage
 from langchain.prompts import ChatPromptTemplate
-from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 import uuid
 import warnings
@@ -55,7 +62,9 @@ def retrieve_and_format_response(query, retriever, llm):
                In the event that there's relevant info, make sure to attach the download button at the very end: \n\n[More Info]({s3_gen_url}) \
                Context: {combined_content}"
     
+    # Originally there were no message
     message = HumanMessage(content=prompt)
+
     response = llm([message])
     return response
 
@@ -65,8 +74,24 @@ def save_chat_history_to_file(filename, history):
         file.write(history)
 
 # Function to upload the file to S3
-def upload_file_to_s3(s3_client, bucket, key, filename):
+def upload_file_to_s3(bucket, key, filename):
     s3_client.upload_file(filename, bucket, key)
+
+# Example usage with memory
+def ask_question(query, chain, llm):
+    # Retrieve and format the response with pre-signed URLs
+    response_with_docs = retrieve_and_format_response(query, retriever, llm)
+    
+    # Add the retrieved response to the memory
+    memory.save_context({"input": query}, {"output": response_with_docs['answer']})
+    
+    # Use the conversation chain to get the final response
+    response = chain.invoke(query)
+    pattern = r"s3(.*?)(?=json)"
+    s3_uris = ["s3" + x + "json" for x in re.findall(pattern, response)]
+    for s3_uri in s3_uris:
+        final_response = response.replace(s3_uri, generate_presigned_url(s3_uri))
+    return final_response
 
 # Setup - Streamlit secrets
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
@@ -99,21 +124,19 @@ s3_client = boto3.client(
     aws_secret_access_key=aws_secret_access_key,
     region_name=aws_region
 )
-
 # PINECONE
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 pc = Pinecone(api_key=PINECONE_API_KEY)
 index_name = "test"
 openai.api_key = OPENAI_API_KEY
 
-
+# Set up LangChain objects
 # VOYAGE AI
 model_name = "voyage-large-2"  
 embedding_function = VoyageAIEmbeddings(
     model=model_name,  
     voyage_api_key=VOYAGE_AI_API_KEY
 )
-
 # Initialize the Pinecone client
 vector_store = PineconeVectorStore.from_existing_index(
     embedding=embedding_function,
@@ -122,10 +145,10 @@ vector_store = PineconeVectorStore.from_existing_index(
 retriever = vector_store.as_retriever()
 
 # Initialize rag_chain
-stuff_chain = StuffDocumentsChain(prompt=prompt_template, llm=llm)
 rag_chain = (
     {"retrieved_context": retriever, "question": RunnablePassthrough()}
-    | stuff_chain
+    | prompt_template
+    | llm
 )
 
 # Initialize chat history
@@ -156,16 +179,3 @@ if user_input:
     
     with st.chat_message("assistant"):
         st.markdown(bot_response)
-
-# Add an "End Conversation" button
-if st.button("End Conversation"):
-    # Save chat history to a file and upload to S3
-    session_id = str(uuid.uuid4())
-    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
-    local_filename = f"chat_history_{session_id}.txt"
-    save_chat_history_to_file(local_filename, chat_history)
-    chat_history_key = f"raw-data/chat_history_{session_id}.txt"
-    upload_file_to_s3(s3_client, "chat-history-process", chat_history_key, local_filename)
-    st.success(f"Chat history saved and uploaded to S3 as '{chat_history_key}'")
-    # Clear chat history from session state
-    st.session_state["messages"] = []
