@@ -8,6 +8,7 @@ from langchain_openai import ChatOpenAI
 from langchain.chains import LLMChain, RetrievalQA
 import time
 import re
+import json
 from langchain_pinecone import PineconeVectorStore
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import HumanMessage
@@ -55,20 +56,22 @@ def retrieve_and_format_response(user_input, retriever, llm):
 
 # New function to save retrieved documents to a file without sensitive information
 def save_retrieved_docs_to_file(docs):
-    retrieved_docs_content = ""
+    retrieved_docs_content = []
     for doc in docs:
-        retrieved_docs_content += f"{doc.page_content}\n\n[More Info](URL_PLACEHOLDER_{doc.metadata['id']})\n\n"
-    return retrieved_docs_content
+        retrieved_docs_content.append({
+            "content": doc.page_content,
+            "more_info": f"URL_PLACEHOLDER_{doc.metadata['id']}"
+        })
+    return json.dumps(retrieved_docs_content, indent=2)
 
 # Function to dynamically replace URL placeholders with pre-signed URLs
 def replace_placeholders_with_urls(content, s3_client):
-    pattern = re.compile(r'URL_PLACEHOLDER_(.*?)\)')
-    matches = pattern.findall(content)
-    for match in matches:
-        s3_uri = match
+    data = json.loads(content)
+    for item in data:
+        s3_uri = item["more_info"].replace("URL_PLACEHOLDER_", "")
         presigned_url = generate_presigned_url(s3_client, s3_uri)
-        content = content.replace(f"URL_PLACEHOLDER_{s3_uri})", presigned_url)
-    return content
+        item["more_info"] = presigned_url
+    return json.dumps(data, indent=2)
 
 # Setup - Streamlit secrets
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
@@ -207,8 +210,8 @@ if user_input:
     st.download_button(
         label="More Info",
         data=retrieved_docs_content,
-        file_name="retrieved_documents.txt",
-        mime="text/plain"
+        file_name="retrieved_documents.json",
+        mime="application/json"
     )
 
 # Add an "End Conversation" button
