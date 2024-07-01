@@ -179,7 +179,7 @@ if user_input:
         st.markdown(bot_response)
     
     # Retrieve documents and prepare the content for download
-    docs = history_aware_retriever.retrieve_documents(user_input)
+    docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
     retrieved_docs_content = save_retrieved_docs_to_file(docs)
     
     # Display a download button for the retrieved documents
