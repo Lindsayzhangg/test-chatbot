@@ -1,38 +1,18 @@
 import streamlit as st
-from langchain_voyageai import VoyageAIEmbeddings
 import os
 import boto3
 from urllib.parse import urlparse
-from pinecone import Pinecone
 import pinecone
 from langchain_openai import ChatOpenAI
-import openai
-from langchain.chains import LLMChain, RetrievalQA
-import time
-import re
-from langchain_pinecone import PineconeVectorStore
+from langchain.chains import create_stuff_documents_chain, create_retrieval_chain
 from langchain.memory import ConversationBufferMemory
-from langchain.schema import HumanMessage
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains import ConversationChain
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_voyageai import VoyageAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
 import uuid
 import warnings
-import os
-from langchain_openai import ChatOpenAI
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
-from langchain import hub
-from langchain_pinecone import PineconeVectorStore
-from langchain.memory import ConversationBufferMemory
-from langchain_voyageai import VoyageAIEmbeddings
-from langchain.chains import create_history_aware_retriever
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import os
-from dotenv import load_dotenv
-import uuid
-import boto3
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -125,7 +105,7 @@ memory = ConversationBufferMemory()
 # CODE DIRECTLY FROM LANGCHAIN DOCUMENTATION
 store = {}
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+def get_session_history(session_id: str) -> ChatMessageHistory:
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -176,9 +156,6 @@ def chat():
     # Upload the file to S3
     upload_file_to_s3(s3_client, bucket_name, chat_history_key, local_filename)
     print(f"Chat history saved and uploaded to S3 as '{chat_history_key}' in bucket '{bucket_name}'")
-
-# Start the chat
-# chat()
 
 # Initialize chat history
 if "messages" not in st.session_state:
