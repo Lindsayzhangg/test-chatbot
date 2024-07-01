@@ -5,7 +5,15 @@ import boto3
 from urllib.parse import urlparse
 import pinecone
 from langchain_openai import ChatOpenAI
+from langchain.chains import LLMChain, RetrievalQA
 import re
+from langchain_pinecone import PineconeVectorStore
+from langchain.memory import ConversationBufferMemory
+from langchain.schema import HumanMessage
+from langchain.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import StuffDocumentsChain
+from langchain_core.runnables import RunnablePassthrough
+import uuid
 import warnings
 
 # Ignore all warnings
@@ -115,10 +123,10 @@ vector_store = PineconeVectorStore.from_existing_index(
 retriever = vector_store.as_retriever()
 
 # Initialize rag_chain
+stuff_chain = StuffDocumentsChain(prompt=prompt_template, llm=llm)
 rag_chain = (
     {"retrieved_context": retriever, "question": RunnablePassthrough()}
-    | prompt_template
-    | llm
+    | stuff_chain
 )
 
 # Initialize chat history
