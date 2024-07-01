@@ -162,7 +162,7 @@ if user_input:
 # 添加“结束对话”按钮
 if st.button("End Conversation"):
     session_id = str(uuid.uuid4())
-    chat_history = "\n.join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
+    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
     local_filename = f"chat_history_{session_id}.txt"
     save_chat_history_to_file(local_filename, chat_history)
     chat_history_key = f"raw-data/chat_history_{session_id}.txt"
