@@ -47,55 +47,6 @@ def generate_presigned_url(s3_uri):
         ExpiresIn=3600
     )
     return presigned_url
-import streamlit as st
-from langchain_voyageai import VoyageAIEmbeddings
-import os
-import boto3
-from urllib.parse import urlparse
-import pinecone
-from langchain_openai import ChatOpenAI
-from langchain.chains import LLMChain, RetrievalQA
-import time
-import re
-from langchain_pinecone import PineconeVectorStore
-from langchain.memory import ConversationBufferMemory
-from langchain.schema import HumanMessage
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains import ConversationChain
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-import uuid
-import warnings
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
-from langchain import hub
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_pinecone import PineconeVectorStore
-from langchain_voyageai import VoyageAIEmbeddings
-from langchain.chains import create_history_aware_retriever
-from dotenv import load_dotenv
-
-# Ignore all warnings
-warnings.filterwarnings("ignore")
-
-# Set up Streamlit app
-st.set_page_config(page_title="Custom Chatbot", layout="wide")
-st.title("Custom Chatbot with Retrieval Abilities")
-
-# Function to generate pre-signed URL
-def generate_presigned_url(s3_uri):
-    parsed_url = urlparse(s3_uri)
-    bucket_name = parsed_url.netloc
-    object_key = parsed_url.path.lstrip('/')
-    presigned_url = s3_client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': bucket_name, 'Key': object_key},
-        ExpiresIn=3600
-    )
-    return presigned_url
 
 # Function to retrieve documents, generate URLs, and format the response
 def retrieve_and_format_response(query, retriever, llm):
@@ -109,8 +60,8 @@ def retrieve_and_format_response(query, retriever, llm):
         formatted_doc = f"{content_data}\n\n[More Info]({s3_gen_url})"
         formatted_docs.append(formatted_doc)
     
-    combined_content = "\n\n".join(formatted_docs)# Function to generate pre-signed URL
-
+    combined_content = "\n\n".join(formatted_docs)
+    return combined_content
 
 # Setup - Streamlit secrets
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
