@@ -39,143 +39,149 @@ def generate_presigned_url(s3_uri):
     )
     return presigned_url
 
-# Function to retrieve documents, generate URLs, and format the response
-def retrieve_and_format_response(query, retriever, llm):
-    docs = retriever.get_relevant_documents(query)
-    
-    formatted_docs = []
-    for doc in docs:
-        content_data = doc.page_content
-        s3_uri = doc.metadata['id']
-        s3_gen_url = generate_presigned_url(s3_uri)
-        formatted_doc = f"{content_data}\n\n[More Info]({s3_gen_url})"
-        formatted_docs.append(formatted_doc)
-    
-    combined_content = "\n\n".join(formatted_docs)
-    
-    # Create a prompt for the LLM to generate an explanation based on the retrieved content
-    prompt = f"Instruction: You are a helpful assistant to help users with their patient education queries. \
-               Based on the following information, provide a summarized & concise explanation using a couple of sentences. \
-               Only respond with the information relevant to the user query {query}, \
-               if there are none, make sure you say the `magic words`: 'I don't know, I did not find the relevant data in the knowledge base.' \
-               But you could carry out some conversations with the user to make them feel welcomed and comfortable, in that case you don't have to say the `magic words`. \
-               In the event that there's relevant info, make sure to attach the download button at the very end: \n\n[More Info]({s3_gen_url}) \
-               Context: {combined_content}"
-    
-    # Originally there were no message
-    message = HumanMessage(content=prompt)
+# Setup
+load_dotenv()
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+os.environ["VOYAGE_AI_API_KEY"] = os.getenv("VOYAGE_AI_API_KEY")
+os.environ["PINECONE_API_KEY"] = os.getenv("PINECONE_API_KEY")
 
-    response = llm([message])
-    return response
+# Pull the retrieval QA chat prompt
+retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
+llm = ChatOpenAI()
 
-# Function to save chat history to a file
+# Initialize the retriever using PineconeVectorStore
+model_name = "voyage-large-2"
+embedding_function = VoyageAIEmbeddings(
+    model=model_name,
+    voyage_api_key=os.environ["VOYAGE_AI_API_KEY"]
+)
+vector_store = PineconeVectorStore.from_existing_index(
+    embedding=embedding_function,
+    index_name="test"
+)
+retriever = vector_store.as_retriever()
+
+# Create the combined documents chain
+# combine_docs_chain = create_stuff_documents_chain(
+#     llm, retrieval_qa_chat_prompt
+# )
+
+# CODE DIRECTLY FROM LANGCHAIN DOCUMENTATION
+contextualize_q_system_prompt = (
+    "Given a chat history and the latest user question "
+    "which might reference context in the chat history, "
+    "formulate a standalone question which can be understood "
+    "without the chat history. Do NOT answer the question, "
+    "just reformulate it if needed and otherwise return it as is."
+)
+
+contextualize_q_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+
+history_aware_retriever = create_history_aware_retriever(
+    llm, retriever, contextualize_q_prompt
+)
+
+# ADDED
+system_prompt = (
+    "You are an assistant for question-answering tasks. "
+    "Use the following pieces of retrieved context to answer "
+    "the question. If you don't know the answer, say that you "
+    "don't know. Use three sentences maximum and keep the "
+    "answer concise."
+    "\n\n"
+    "{context}"
+)
+
+qa_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+
+question_answer_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prompt)
+
+rag_retreival_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+
+# Initialize memory
+memory = ConversationBufferMemory()
+
+# Create the retrieval chain
+# retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
+
+# CODE DIRECTLY FROM LANGCHAIN DOCUMENTATION
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+
+store = {}
+
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
+
+conversational_rag_chain = RunnableWithMessageHistory(
+    rag_retreival_chain,
+    get_session_history,
+    input_messages_key="input",
+    history_messages_key="chat_history",
+    output_messages_key="answer",
+)
+
+def chat():
+    print("Start chatting with the bot (type 'exit' to stop):")
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == 'exit':
+            print("Ending the conversation. Goodbye!")
+            break
+        # response = retrieval_chain.invoke({"input": user_input})["answer"]
+        response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})["answer"]
+        print("Bot:", response)
+
+# ADDED: Functions to save chat history and upload to S3
 def save_chat_history_to_file(filename, history):
     with open(filename, 'w') as file:
         file.write(history)
 
-# Function to upload the file to S3
-def upload_file_to_s3(bucket, key, filename):
+def upload_file_to_s3(s3_client, bucket, key, filename):
     s3_client.upload_file(filename, bucket, key)
 
-# Example usage with memory
-def ask_question(query, chain, llm):
-    # Retrieve and format the response with pre-signed URLs
-    response_with_docs = retrieve_and_format_response(query, retriever, llm)
+def chat():
+    print("Start chatting with the bot (type 'exit' to stop):")
+    session_id = str(uuid.uuid4())
+    s3_client = boto3.client("s3")
+    bucket_name = "chat-history-process"
+    chat_history_key = f"raw-data/chat_history_{session_id}.txt"
+    chat_history = f"\nSession ID: {session_id}\n"
     
-    # Add the retrieved response to the memory
-    memory.save_context({"input": query}, {"output": response_with_docs['answer']})
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == 'exit':
+            print("Ending the conversation. Goodbye!")
+            break
+        response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})["answer"]
+        print("Bot:", response)
+        
+        # Append interaction to chat history
+        chat_history += f"You: {user_input}\nAI: {response}\n"
     
-    # Use the conversation chain to get the final response
-    response = chain.invoke(query)
-    pattern = r"s3(.*?)(?=json)"
-    s3_uris = ["s3" + x + "json" for x in re.findall(pattern, response)]
-    for s3_uri in s3_uris:
-        final_response = response.replace(s3_uri, generate_presigned_url(s3_uri))
-    return final_response
+    # Save the chat history to a file
+    local_filename = f"./history/chat_history_{session_id}.txt"
+    save_chat_history_to_file(local_filename, chat_history)
 
-# Setup - Streamlit secrets
-OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
-VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
-PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
-aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
-aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
-aws_region = st.secrets["aws"]["aws_region"]
+    # Upload the file to S3
+    upload_file_to_s3(s3_client, bucket_name, chat_history_key, local_filename)
+    print(f"Chat history saved and uploaded to S3 as '{chat_history_key}' in bucket '{bucket_name}'")
 
-# Langchain stuff
-llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 
-# Initialize the conversation memory
-memory = ConversationBufferMemory()
-
-prompt_template = ChatPromptTemplate.from_template(
-        "Instruction: You are a helpful assistant to help users with their patient education queries. \
-        Based on the following information, provide a summarized & concise explanation using a couple of sentences. \
-        Only respond with the information relevant to the user query {query}, \
-        if there are none, make sure you say the `magic words`: 'I don't know, I did not find the relevant data in the knowledge base.' \
-        But you could carry out some conversations with the user to make them feel welcomed and comfortable, in that case you don't have to say the `magic words`. \
-        In the event that there's relevant info, make sure to attach the download button at the very end: \n\n[More Info]({s3_gen_url}) \
-        Context: {combined_content}"
-    )
-
-# Initialize necessary objects (s3 client, Pinecone, OpenAI, etc.)
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
-    region_name=aws_region
-)
-# PINECONE
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-pc = Pinecone(api_key=PINECONE_API_KEY)
-index_name = "test"
-openai.api_key = OPENAI_API_KEY
-
-# Set up LangChain objects
-# VOYAGE AI
-model_name = "voyage-large-2"  
-embedding_function = VoyageAIEmbeddings(
-    model=model_name,  
-    voyage_api_key=VOYAGE_AI_API_KEY
-)
-# Initialize the Pinecone client
-vector_store = PineconeVectorStore.from_existing_index(
-    embedding=embedding_function,
-    index_name=index_name
-)
-retriever = vector_store.as_retriever()
-
-# Initialize rag_chain
-rag_chain = (
-    {"retrieved_context": retriever, "question": RunnablePassthrough()}
-    | prompt_template
-    | llm
-)
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state["messages"] = []
-
-# Display chat messages from history
-for message in st.session_state["messages"]:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# Get user input
-user_input = st.chat_input("You: ")
-
-if user_input:
-    # Add user message to chat history
-    st.session_state["messages"].append({"role": "user", "content": user_input})
-    
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(user_input)
-    
-    # Generate and display bot response
-    with st.spinner("Thinking..."):
-        bot_response = retrieve_and_format_response(user_input, retriever, llm).content
-    
-    st.session_state["messages"].append({"role": "assistant", "content": bot_response})
-    
-    with st.chat_message("assistant"):
-        st.markdown(bot_response)
+# Start the chat
+chat()
