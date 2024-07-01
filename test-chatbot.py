@@ -31,7 +31,13 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
 
 # 初始化OpenAI
-llm = ChatOpenAI(api_key=OPENAI_API_KEY)
+openai.api_key = OPENAI_API_KEY
+
+# 确认 ChatOpenAI 初始化参数正确
+llm = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name="gpt-4"  # 或者使用其他模型名称，例如 "gpt-3.5-turbo"
+)
 
 # 初始化VoyageAI嵌入
 model_name = "voyage-large-2"
