@@ -70,7 +70,7 @@ llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 model_name = "voyage-large-2"
 embedding_function = VoyageAIEmbeddings(
     model=model_name,
-    voyage_api_key=os.environ["VOYAGE_AI_API_KEY"]
+    voyage_api_key= st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
 )
 vector_store = PineconeVectorStore.from_existing_index(
     embedding=embedding_function,
