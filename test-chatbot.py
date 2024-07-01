@@ -7,7 +7,6 @@ from pinecone import Pinecone
 import pinecone
 from langchain_openai import ChatOpenAI
 from langchain.chains import LLMChain, RetrievalQA
-import time
 import re
 from langchain_pinecone import PineconeVectorStore
 from langchain.memory import ConversationBufferMemory
@@ -19,6 +18,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_history_aware_retriever
+from langchain_core.prompts import MessagesPlaceholder
 import uuid
 import warnings
 
@@ -109,9 +109,6 @@ llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 # Initialize the conversation memory
 memory = ConversationBufferMemory()
 
-# Pull the retrieval QA chat prompt
-retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
 embedding_function = VoyageAIEmbeddings(
@@ -125,7 +122,7 @@ vector_store = PineconeVectorStore.from_existing_index(
 retriever = vector_store.as_retriever()
 
 # Create the combined documents chain
-question_answer_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prompt)
+question_answer_chain = create_stuff_documents_chain(llm, "")
 
 contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
