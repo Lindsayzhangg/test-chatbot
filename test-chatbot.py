@@ -12,9 +12,6 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from urllib.parse import urlparse
 import boto3
 import uuid
-import re
-import pinecone
-import openai
 import warnings
 
 # 忽略所有警告
@@ -66,7 +63,7 @@ qa_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# 正确的创建问答链
+# 创建问答链
 question_answer_chain = create_stuff_documents_chain(
     llm=llm,
     prompt=qa_prompt,
