@@ -5,13 +5,10 @@ import boto3
 from urllib.parse import urlparse
 import pinecone
 from langchain_openai import ChatOpenAI
-from langchain.chains import LLMChain, RetrievalQA
-import re
-from langchain_pinecone import PineconeVectorStore
-from langchain.memory import ConversationBufferMemory
+from langchain.chains import LLMChain
 from langchain.schema import HumanMessage
 from langchain.prompts import ChatPromptTemplate
-from langchain.chains.combine_documents import StuffDocumentsChain
+from langchain.memory import ConversationBufferMemory
 from langchain_core.runnables import RunnablePassthrough
 import uuid
 import warnings
