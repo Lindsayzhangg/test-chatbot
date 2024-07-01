@@ -202,7 +202,7 @@ def chat():
 
 
 # Start the chat
-chat()
+# chat()
 
 # Initialize chat history
 if "messages" not in st.session_state:
