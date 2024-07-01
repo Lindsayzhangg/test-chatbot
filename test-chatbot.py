@@ -40,6 +40,7 @@ embedding_function = VoyageAIEmbeddings(
 )
 
 # 初始化Pinecone向量存储
+os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 pinecone.init(api_key=PINECONE_API_KEY)
 vector_store = PineconeVectorStore.from_existing_index(
     embedding=embedding_function,
