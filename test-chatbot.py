@@ -49,22 +49,18 @@ def generate_presigned_url(s3_uri):
     return presigned_url
 
 # Function to retrieve documents, generate URLs, and format the response
-def retrieve_and_format_response(query, retriever, llm):
-    docs = retriever.get_relevant_documents(query)
-    
-    formatted_docs = []
-    for doc in docs:
-        content_data = doc.page_content
-        s3_uri = doc.metadata['id']
-        s3_gen_url = generate_presigned_url(s3_uri)
-        formatted_doc = f"{content_data}\n\n[More Info]({s3_gen_url})"
-        formatted_docs.append(formatted_doc)
-    
-    combined_content = "\n\n".join(formatted_docs)
-    st.write("### Debug Info: Retrieved Documents")
-    for doc in docs:
-        st.write(f"Document ID: {doc.metadata['id']}, Content: {doc.page_content[:100]}...")
-    return combined_content
+def retrieve_and_format_response(user_input, retriever, llm):
+    response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
+    return response
+
+# New function to save retrieved documents to a file and upload to S3
+def save_retrieved_docs_to_file(docs, filename):
+    with open(filename, 'w') as file:
+        for doc in docs:
+            file.write(f"{doc.page_content}\n\n[More Info]({generate_presigned_url(doc.metadata['id'])})\n\n")
+
+def upload_file_to_s3(s3_client, bucket, key, filename):
+    s3_client.upload_file(filename, bucket, key)
 
 # Setup - Streamlit secrets
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
@@ -191,6 +187,14 @@ if user_input:
     
     with st.chat_message("assistant"):
         st.markdown(bot_response)
+    
+    # Save retrieved documents to a file and upload to S3
+    docs = history_aware_retriever.retrieve_documents(user_input)
+    retrieved_docs_filename = f"retrieved_docs_{str(uuid.uuid4())}.txt"
+    save_retrieved_docs_to_file(docs, retrieved_docs_filename)
+    retrieved_docs_key = f"raw-data/{retrieved_docs_filename}"
+    upload_file_to_s3(boto3.client("s3", region_name=aws_region, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key), "chat-history-process", retrieved_docs_key, retrieved_docs_filename)
+    st.success(f"Retrieved documents saved and uploaded to S3 as '{retrieved_docs_key}'")
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
