@@ -182,12 +182,16 @@ if user_input:
     
     # Generate and display bot response
     with st.spinner("Thinking..."):
-        bot_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
+        bot_response_data = retrieve_and_format_response(user_input, retriever, llm)
+        bot_response = bot_response_data["answer"]
+        sources = bot_response_data["sources"]
     
     st.session_state["messages"].append({"role": "assistant", "content": bot_response})
     
     with st.chat_message("assistant"):
         st.markdown(bot_response)
+        for source in sources:
+            st.markdown(f"Source: {source}")
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
