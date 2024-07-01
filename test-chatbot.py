@@ -32,7 +32,9 @@ AWS_REGION = os.getenv("AWS_REGION")
 
 # 初始化OpenAI
 openai.api_key = OPENAI_API_KEY
-llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
+
+# 初始化ChatOpenAI
+llm = ChatOpenAI(api_key=OPENAI_API_KEY)
 
 # 初始化VoyageAI嵌入
 model_name = "voyage-large-2"
