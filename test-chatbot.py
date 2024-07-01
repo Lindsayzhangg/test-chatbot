@@ -10,7 +10,6 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from urllib.parse import urlparse
-from dotenv import load_dotenv
 import boto3
 import uuid
 import re
@@ -21,17 +20,16 @@ import warnings
 # 忽略所有警告
 warnings.filterwarnings("ignore")
 
-# 加载环境变量
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-VOYAGE_AI_API_KEY = os.getenv("VOYAGE_AI_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.getenv("AWS_REGION")
+# 从 secrets.toml 文件中加载环境变量
+OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
+VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
+PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
+AWS_ACCESS_KEY_ID = st.secrets["aws"]["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"]
+AWS_REGION = st.secrets["aws"]["AWS_REGION"]
 
 # 初始化OpenAI
-llm = ChatOpenAI(api_key=OPENAI_API_KEY, model_name="gpt-4o")
+llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model_name="gpt-4")
 
 # 初始化VoyageAI嵌入
 model_name = "voyage-large-2"
@@ -164,7 +162,7 @@ if user_input:
 # 添加“结束对话”按钮
 if st.button("End Conversation"):
     session_id = str(uuid.uuid4())
-    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
+    chat_history = "\n.join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
     local_filename = f"chat_history_{session_id}.txt"
     save_chat_history_to_file(local_filename, chat_history)
     chat_history_key = f"raw-data/chat_history_{session_id}.txt"
