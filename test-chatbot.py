@@ -53,12 +53,22 @@ def retrieve_and_format_response(user_input, retriever, llm):
     response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
     return response
 
-# New function to save retrieved documents to a file
-def save_retrieved_docs_to_file(s3_client, docs):
+# New function to save retrieved documents to a file without sensitive information
+def save_retrieved_docs_to_file(docs):
     retrieved_docs_content = ""
     for doc in docs:
-        retrieved_docs_content += f"{doc.page_content}\n\n[More Info]({generate_presigned_url(s3_client, doc.metadata['id'])})\n\n"
+        retrieved_docs_content += f"{doc.page_content}\n\n[More Info](URL_PLACEHOLDER_{doc.metadata['id']})\n\n"
     return retrieved_docs_content
+
+# Function to dynamically replace URL placeholders with pre-signed URLs
+def replace_placeholders_with_urls(content, s3_client):
+    pattern = re.compile(r'URL_PLACEHOLDER_(.*?)\)')
+    matches = pattern.findall(content)
+    for match in matches:
+        s3_uri = match
+        presigned_url = generate_presigned_url(s3_client, s3_uri)
+        content = content.replace(f"URL_PLACEHOLDER_{s3_uri})", presigned_url)
+    return content
 
 # Setup - Streamlit secrets
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
@@ -188,7 +198,10 @@ if user_input:
     
     # Retrieve documents and prepare the content for download
     docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
-    retrieved_docs_content = save_retrieved_docs_to_file(s3_client, docs)
+    retrieved_docs_content = save_retrieved_docs_to_file(docs)
+    
+    # Dynamically replace URL placeholders with pre-signed URLs
+    retrieved_docs_content = replace_placeholders_with_urls(retrieved_docs_content, s3_client)
     
     # Display a download button for the retrieved documents
     st.download_button(
@@ -202,7 +215,7 @@ if user_input:
 if st.button("End Conversation"):
     # Save chat history to a file and upload to S3
     session_id = str(uuid.uuid4())
-    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
+    chat_history = "\n.join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
     local_filename = f"chat_history_{session_id}.txt"
     with open(local_filename, 'w') as file:
         file.write(chat_history)
