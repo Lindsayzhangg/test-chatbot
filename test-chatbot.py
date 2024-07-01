@@ -37,7 +37,7 @@ st.set_page_config(page_title="Custom Chatbot", layout="wide")
 st.title("Custom Chatbot with Retrieval Abilities")
 
 # Function to generate pre-signed URL
-def generate_presigned_url(s3_uri):
+def generate_presigned_url(s3_client, s3_uri):
     parsed_url = urlparse(s3_uri)
     bucket_name = parsed_url.netloc
     object_key = parsed_url.path.lstrip('/')
@@ -54,10 +54,10 @@ def retrieve_and_format_response(user_input, retriever, llm):
     return response
 
 # New function to save retrieved documents to a file
-def save_retrieved_docs_to_file(docs):
+def save_retrieved_docs_to_file(s3_client, docs):
     retrieved_docs_content = ""
     for doc in docs:
-        retrieved_docs_content += f"{doc.page_content}\n\n[More Info]({generate_presigned_url(doc.metadata['id'])})\n\n"
+        retrieved_docs_content += f"{doc.page_content}\n\n[More Info]({generate_presigned_url(s3_client, doc.metadata['id'])})\n\n"
     return retrieved_docs_content
 
 # Setup - Streamlit secrets
@@ -67,6 +67,14 @@ PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
 aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
 aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
 aws_region = st.secrets["aws"]["aws_region"]
+
+# Initialize boto3 S3 client
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key,
+    region_name=aws_region
+)
 
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
@@ -180,7 +188,7 @@ if user_input:
     
     # Retrieve documents and prepare the content for download
     docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
-    retrieved_docs_content = save_retrieved_docs_to_file(docs)
+    retrieved_docs_content = save_retrieved_docs_to_file(s3_client, docs)
     
     # Display a download button for the retrieved documents
     st.download_button(
