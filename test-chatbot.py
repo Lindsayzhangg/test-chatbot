@@ -64,7 +64,7 @@ aws_region = st.secrets["aws"]["aws_region"]
 
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-llm = ChatOpenAI()
+llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
