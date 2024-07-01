@@ -21,12 +21,16 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # 从 secrets.toml 文件中加载环境变量
-OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
-VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
-PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
-AWS_ACCESS_KEY_ID = st.secrets["aws"]["AWS_ACCESS_KEY_ID"]
-AWS_SECRET_ACCESS_KEY = st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"]
-AWS_REGION = st.secrets["aws"]["AWS_REGION"]
+try:
+    OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
+    VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
+    PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
+    AWS_ACCESS_KEY_ID = st.secrets["aws"]["aws_access_key_id"]
+    AWS_SECRET_ACCESS_KEY = st.secrets["aws"]["aws_secret_access_key"]
+    AWS_REGION = st.secrets["aws"]["aws_region"]
+except KeyError as e:
+    st.error(f"Missing key in secrets.toml: {e}")
+    raise
 
 # 初始化OpenAI
 llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model_name="gpt-4")
