@@ -12,11 +12,11 @@ import time
 import re
 from langchain_pinecone import PineconeVectorStore
 from langchain.memory import ConversationBufferMemory
-from langchain.schema import HumanMessage, ChatMessageHistory
+from langchain.schema import HumanMessage
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import ConversationChain
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableWithMessageHistory
+from langchain_core.runnables import RunnablePassthrough
 import uuid
 import warnings
 import os
@@ -33,6 +33,7 @@ import os
 from dotenv import load_dotenv
 import uuid
 import boto3
+
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
