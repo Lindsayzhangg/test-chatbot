@@ -19,6 +19,20 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 import uuid
 import warnings
+import os
+from langchain_openai import ChatOpenAI
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain import hub
+from langchain_pinecone import PineconeVectorStore
+from langchain.memory import ConversationBufferMemory
+from langchain_voyageai import VoyageAIEmbeddings
+from langchain.chains import create_history_aware_retriever
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import os
+from dotenv import load_dotenv
+import uuid
+import boto3
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
