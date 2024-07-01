@@ -31,9 +31,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
 
 # 初始化OpenAI
-openai.api_key = OPENAI_API_KEY
-
-# 初始化ChatOpenAI
+retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 llm = ChatOpenAI()
 
 # 初始化VoyageAI嵌入
