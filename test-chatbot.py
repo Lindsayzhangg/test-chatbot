@@ -53,15 +53,17 @@ def retrieve_and_format_response(query, retriever, llm):
     docs = retriever.get_relevant_documents(query)
     
     formatted_docs = []
+    sources = []
     for doc in docs:
         content_data = doc.page_content
         s3_uri = doc.metadata['id']
         s3_gen_url = generate_presigned_url(s3_uri)
         formatted_doc = f"{content_data}\n\n[More Info]({s3_gen_url})"
         formatted_docs.append(formatted_doc)
+        sources.append(s3_gen_url)
     
     combined_content = "\n\n".join(formatted_docs)
-    return combined_content
+    return {"answer": combined_content, "sources": sources}
 
 # Setup - Streamlit secrets
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
