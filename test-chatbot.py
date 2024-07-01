@@ -102,7 +102,7 @@ s3_client = boto3.client(
 
 # PINECONE
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-pinecone.init(api_key=PINECONE_API_KEY)
+pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
 index_name = "test"
 
 # VOYAGE AI
