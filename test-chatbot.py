@@ -14,6 +14,8 @@ import boto3
 import uuid
 import warnings
 
+import pinecone
+
 # 忽略所有警告
 warnings.filterwarnings("ignore")
 
