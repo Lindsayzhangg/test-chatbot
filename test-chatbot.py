@@ -35,7 +35,7 @@ from dotenv import load_dotenv
 warnings.filterwarnings("ignore")
 
 # Set up Streamlit app
-st.set_page_config(page_title="Custom Chatbot", layout="wide")
+st.set_page_config(page_title="Chatbot", layout="wide")
 st.title("Custom Chatbot with Retrieval Abilities")
 
 # Function to generate pre-signed URL
