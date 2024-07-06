@@ -69,7 +69,8 @@ st.markdown(
         border: 2px solid #4CAF50;
     }
     .stTextInput>div>div>input:focus {
-        border: 2px solid #1e90ff;
+        border: 2px solid #1e90ff !important; /* 修改的部分: 将对话框在焦点状态时的边框颜色改为蓝色 */
+        box-shadow: none !important; /* 去掉默认的阴影效果 */
     }
     </style>
     """,
