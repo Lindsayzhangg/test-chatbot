@@ -72,6 +72,23 @@ st.markdown(
         background-color: #1e90ff !important; /* 修改的部分: 将按钮点击时的背景色改为蓝色 */
         color: white !important; /* 修改的部分: 将按钮点击时的文字颜色改为白色 */
     }
+    .stDownloadButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+    .stDownloadButton>button:hover {
+        background-color: white; /* 修改的部分: 将按钮悬停时的背景色改为白色 */
+        color: #1e90ff; /
+    }
     </style>
     """,
     unsafe_allow_html=True
