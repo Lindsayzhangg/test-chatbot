@@ -33,6 +33,9 @@ import numpy as np
 import nltk
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
+# Download necessary NLTK data
+nltk.download('punkt')
+
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 
