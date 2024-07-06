@@ -144,7 +144,6 @@ langchain_groq
 langchain
 langchain_pinecone
 langchain_voyageai
-ragas
 datasets
 
 
