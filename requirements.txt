@@ -134,16 +134,3 @@ webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.8.0
 yarl==1.9.4
-python-dotenv
-numpy
-pandas
-nltk
-rouge-score
-langchain_openai
-langchain_groq
-langchain
-langchain_pinecone
-langchain_voyageai
-punkt
-
-
