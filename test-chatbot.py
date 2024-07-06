@@ -28,7 +28,6 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_pinecone import PineconeVectorStore
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain.chains import create_history_aware_retriever
-from datasets import Dataset
 import pandas as pd
 import numpy as np
 import nltk
@@ -48,6 +47,9 @@ PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
 aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
 aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
 aws_region = st.secrets["aws"]["aws_region"]
+
+# Initialize Pinecone
+pinecone.init(api_key=PINECONE_API_KEY, environment='us-west1-gcp')  # Adjust the environment if necessary
 
 # Initialize boto3 S3 client
 s3_client = boto3.client(
@@ -93,7 +95,6 @@ retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 
 # Initialize the retriever using PineconeVectorStore
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 model_name = "voyage-large-2"
 embedding_function = VoyageAIEmbeddings(
     model=model_name,
@@ -229,17 +230,6 @@ if user_input:
     
     with st.chat_message("assistant"):
         st.markdown(bot_response)
-
-    # Prepare data for evaluation
-    eval_data = {
-        "question": user_input,
-        "contexts": response["context"] if "context" in response else [],
-        "answer": bot_response,
-        "ground_truth": gt_response
-    }
-
-    # Create a Dataset for evaluation
-    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
 
     # Perform BLEU score and Edit distance evaluations
     bleu = bleu_score(gt_response, bot_response)
