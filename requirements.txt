@@ -134,3 +134,11 @@ webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.8.0
 yarl==1.9.4
+streamlit
+langchain-voyageai
+boto3
+pinecone-client
+langchain-openai
+openai
+langchain
+langchain_pinecone
