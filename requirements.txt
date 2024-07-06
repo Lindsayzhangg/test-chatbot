@@ -140,4 +140,5 @@ pinecone-client
 openai
 datasets
 nltk
-ragas
+git+https://github.com/yourusername/ragas.git
+
