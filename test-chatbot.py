@@ -56,9 +56,10 @@ st.markdown(
         cursor: pointer;
         border-radius: 8px;
     }
-    .stButton>button:hover {
-        background-color: #1e90ff;
-        color: white;
+    .stButton>button:hover,
+    .stButton>button:active {
+        background-color: #1e90ff; /* 将鼠标悬停和点击时的背景色改为蓝色 */
+        color: white; /* 将鼠标悬停和点击时的文字颜色改为白色 */
     }
     .stTextInput>div>div>input {
         background-color: #f8f8f8;
@@ -68,9 +69,13 @@ st.markdown(
         border-radius: 8px;
         border: 2px solid #4CAF50;
     }
-    .stButton>button:active {
-        background-color: #1e90ff !important; /* 修改的部分: 将按钮点击时的背景色改为蓝色 */
-        color: white !important; /* 修改的部分: 将按钮点击时的文字颜色改为白色 */
+    .stTextInput>div>div>input:focus {
+        border: 2px solid #1e90ff !important; /* 将对话框在焦点状态时的边框颜色改为蓝色 */
+        box-shadow: none !important; /* 去掉默认的阴影效果 */
+    }
+    .stTextInput>div>div>input:focus-visible {
+        border: 2px solid #1e90ff !important; /* 将对话框在焦点状态时的边框颜色改为蓝色 */
+        box-shadow: none !important; /* 去掉默认的阴影效果 */
     }
     .stDownloadButton>button {
         background-color: #4CAF50;
@@ -85,9 +90,10 @@ st.markdown(
         cursor: pointer;
         border-radius: 8px;
     }
-    .stDownloadButton>button:hover {
-        background-color: white; /* 修改的部分: 将按钮悬停时的背景色改为白色 */
-        color: #1e90ff; /
+    .stDownloadButton>button:hover,
+    .stDownloadButton>button:active {
+        background-color: white; /* 将按钮悬停和点击时的背景色改为白色 */
+        color: #1e90ff; /* 将按钮悬停和点击时的文字颜色改为蓝色 */
     }
     </style>
     """,
