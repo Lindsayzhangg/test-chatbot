@@ -68,13 +68,8 @@ st.markdown(
         border-radius: 8px;
         border: 2px solid #4CAF50;
     }
-    .element-container {
-        border: 2px solid #4CAF50;
-        border-radius: 8px;
-        padding: 10px;
-    }
-    .element-container:hover {
-        background-color: #ffeb3b;
+   .stTextInput>div>div>input:hover {
+        border: 2px solid #1e90ff; 
     }
     </style>
     """,
