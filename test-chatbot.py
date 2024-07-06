@@ -95,7 +95,7 @@ st.markdown(
         color: white !important; /* 确保点击后文字颜色为白色 */
     }
     </style>
-    """
+    """,
     unsafe_allow_html=True
 )
 
