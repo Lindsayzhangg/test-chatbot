@@ -33,8 +33,11 @@ import numpy as np
 import nltk
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
-# Download necessary NLTK data
-nltk.download('punkt')
+# Attempt to download NLTK data programmatically
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
