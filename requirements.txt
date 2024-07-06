@@ -140,3 +140,4 @@ pinecone-client
 openai
 datasets
 nltk
+ragas
