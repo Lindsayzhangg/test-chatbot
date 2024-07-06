@@ -29,8 +29,6 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain.chains import create_history_aware_retriever
 from datasets import Dataset
-from ragas.metrics import context_relevancy, answer_relevancy, faithfulness, context_recall, answer_correctness, harmfulness
-from ragas import evaluate
 import pandas as pd
 import numpy as np
 import nltk
@@ -242,30 +240,14 @@ if user_input:
     # Create a Dataset for evaluation
     dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
 
-    # Evaluate the conversation data
-    result = evaluate(
-        dataset_eval,
-        metrics=[
-            context_relevancy,
-            faithfulness,
-            answer_relevancy,
-            context_recall,
-            harmfulness,
-            answer_correctness
-        ],
-    )
-    eval_df = result.to_pandas()
+    # Perform BLEU score and Edit distance evaluations
+    bleu = bleu_score(gt_response, bot_response)
+    edit_dist = edit_distance(gt_response, bot_response)
 
-    # Print eval score
+    # Print evaluation scores
     st.write("Evaluation Metrics:")
-    st.write(f"BLEU score: {round(bleu_score(gt_response, bot_response), 6)}")
-    st.write(f"Edit distance: {edit_distance(gt_response, bot_response)}")
-    st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
-    st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
-    st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
-    st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
-    st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
-    st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
+    st.write(f"BLEU score: {round(bleu, 6)}")
+    st.write(f"Edit distance: {edit_dist}")
 
     # Retrieve documents and prepare the content for download
     docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
