@@ -49,7 +49,7 @@ aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
 aws_region = st.secrets["aws"]["aws_region"]
 
 # Initialize Pinecone
-pinecone.init(api_key=PINECONE_API_KEY, environment='us-west1-gcp')  # Adjust the environment if necessary
+os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY # Adjust the environment if necessary
 
 # Initialize boto3 S3 client
 s3_client = boto3.client(
