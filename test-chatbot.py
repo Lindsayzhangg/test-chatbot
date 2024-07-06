@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore")
 # Set up Streamlit app
 st.set_page_config(page_title="Patient Chatbot", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
-      """
+        """
     <style>
     .main {
         background-color: #f0f8ff;
@@ -60,7 +60,7 @@ st.markdown(
     .stButton>button:active,
     .stButton>button:focus {
         background-color: #1e90ff; /* 将鼠标悬停和点击时的背景色改为蓝色 */
-        color: white; /* 将鼠标悬停和点击时的文字颜色改为白色 */
+        color: white !important; /* 将鼠标悬停和点击时的文字颜色改为白色 */
     }
     .stTextInput>div>div>input {
         background-color: #f8f8f8;
@@ -71,8 +71,8 @@ st.markdown(
         border: 2px solid #4CAF50;
     }
     .stTextInput>div>div>input:focus {
-        border: 2px solid #1e90ff; 
-        box-shadow: none; 
+        border: 2px solid #1e90ff !important; 
+        box-shadow: none !important; 
     }
 
     .stDownloadButton>button {
@@ -92,10 +92,10 @@ st.markdown(
     .stDownloadButton>button:active,
     .stDownloadButton>button:focus {
         background-color: #1e90ff; 
-        color: white; 
+        color: white !important; /* 确保点击后文字颜色为白色 */
     }
     </style>
-    """,
+    """
     unsafe_allow_html=True
 )
 
