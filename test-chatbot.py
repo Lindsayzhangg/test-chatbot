@@ -92,7 +92,7 @@ st.markdown(
     .stDownloadButton>button:active,
     .stDownloadButton>button:focus {
         background-color: #1e90ff; 
-        color: #1e90ff; 
+        color: white; 
     }
     </style>
     """,
