@@ -68,8 +68,8 @@ st.markdown(
         border-radius: 8px;
         border: 2px solid #4CAF50;
     }
-   .stTextInput>div>div>input:hover {
-        border: 2px solid #1e90ff; 
+   .stTextInput>div>div>input:focus {
+        border: 2px solid #1e90ff;
     }
     </style>
     """,
