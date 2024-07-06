@@ -1,4 +1,3 @@
-
 import streamlit as st
 from langchain_voyageai import VoyageAIEmbeddings
 import os
@@ -35,8 +34,45 @@ from dotenv import load_dotenv
 warnings.filterwarnings("ignore")
 
 # Set up Streamlit app
-st.set_page_config(page_title="Chatbot", layout="wide")
-st.title("Custom Chatbot with Retrieval Abilities")
+st.set_page_config(page_title="Patient Chatbot", layout="wide", initial_sidebar_state="collapsed")
+st.markdown(
+    """
+    <style>
+    .main {
+        background-color: #f0f8ff;
+        color: #2f4f4f;
+        font-family: 'Arial', sans-serif;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+    .stButton>button:hover {
+        background-color: #45a049;
+    }
+    .stTextInput>div>div>input {
+        background-color: #f8f8f8;
+        color: #2f4f4f;
+        font-size: 16px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid #4CAF50;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.title("Patient Chatbot with Retrieval Abilities")
 
 # Function to generate pre-signed URL
 def generate_presigned_url(s3_client, s3_uri):
