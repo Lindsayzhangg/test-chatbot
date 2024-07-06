@@ -59,7 +59,7 @@ st.markdown(
     .stButton>button:hover,
     .stButton>button:active,
     .stButton>button:focus {
-        background-color: #1e90ff; /* 将鼠标悬停和点击时的背景色改为蓝色 */
+        background-color: white; /* 将鼠标悬停和点击时的背景色改为蓝色 */
         color: white; /* 将鼠标悬停和点击时的文字颜色改为白色 */
     }
     .stTextInput>div>div>input {
