@@ -57,7 +57,8 @@ st.markdown(
         border-radius: 8px;
     }
     .stButton>button:hover {
-        background-color: #45a049;
+        background-color: #ffeb3b;
+        color: black;
     }
     .stTextInput>div>div>input {
         background-color: #f8f8f8;
