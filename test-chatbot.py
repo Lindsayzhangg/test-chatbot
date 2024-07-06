@@ -28,7 +28,13 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_pinecone import PineconeVectorStore
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain.chains import create_history_aware_retriever
-from dotenv import load_dotenv
+from datasets import Dataset
+from ragas.metrics import context_relevancy, answer_relevancy, faithfulness, context_recall, answer_correctness, harmfulness
+from ragas import evaluate
+import pandas as pd
+import numpy as np
+import nltk
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -36,6 +42,22 @@ warnings.filterwarnings("ignore")
 # Set up Streamlit app
 st.set_page_config(page_title="Custom Chatbot", layout="wide")
 st.title("Custom Chatbot with Retrieval Abilities")
+
+# Setup environment variables from Streamlit secrets
+OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
+VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
+PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
+aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
+aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
+aws_region = st.secrets["aws"]["aws_region"]
+
+# Initialize boto3 S3 client
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key,
+    region_name=aws_region
+)
 
 # Function to generate pre-signed URL
 def generate_presigned_url(s3_client, s3_uri):
@@ -49,12 +71,7 @@ def generate_presigned_url(s3_client, s3_uri):
     )
     return presigned_url
 
-# Function to retrieve documents, generate URLs, and format the response
-def retrieve_and_format_response(user_input, retriever, llm):
-    response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
-    return response
-
-# New function to save retrieved documents to a file without sensitive information
+# Function to save retrieved documents to a file without sensitive information
 def save_retrieved_docs_to_file(docs):
     retrieved_docs_content = []
     for doc in docs:
@@ -72,22 +89,6 @@ def replace_placeholders_with_urls(content, s3_client):
         presigned_url = generate_presigned_url(s3_client, s3_uri)
         item["more_info"] = presigned_url
     return json.dumps(data, indent=2)
-
-# Setup - Streamlit secrets
-OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
-VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
-PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
-aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
-aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
-aws_region = st.secrets["aws"]["aws_region"]
-
-# Initialize boto3 S3 client
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
-    region_name=aws_region
-)
 
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
@@ -182,6 +183,35 @@ for message in st.session_state["messages"]:
 # Get user input
 user_input = st.chat_input("You: ")
 
+def bleu_score(reference, hypothesis):
+    reference_tokens = [nltk.word_tokenize(reference)]
+    hypothesis_tokens = nltk.word_tokenize(hypothesis)
+    smoothing_function = SmoothingFunction().method1
+    return sentence_bleu(reference_tokens, hypothesis_tokens, smoothing_function=smoothing_function)
+
+def edit_distance(reference, hypothesis):
+    m = len(reference) + 1
+    n = len(hypothesis) + 1
+
+    # Create a matrix to store the distances
+    dp = np.zeros((m, n), dtype=int)
+
+    # Initialize the first row and column
+    for i in range(m):
+        dp[i][0] = i
+    for j in range(n):
+        dp[0][j] = j
+
+    # Compute the edit distance
+    for i in range(1, m):
+        for j in range(1, n):
+            cost = 0 if reference[i-1] == hypothesis[j-1] else 1
+            dp[i][j] = min(dp[i-1][j] + 1,        # Deletion
+                           dp[i][j-1] + 1,        # Insertion
+                           dp[i-1][j-1] + cost)   # Substitution
+
+    return dp[m-1][n-1]
+
 if user_input:
     # Add user message to chat history
     st.session_state["messages"].append({"role": "user", "content": user_input})
@@ -192,13 +222,51 @@ if user_input:
     
     # Generate and display bot response
     with st.spinner("Thinking..."):
-        bot_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
+        response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
+        bot_response = response["answer"]
+        gt_response = response["answer"]  # Since using GPT-4o as ground truth, the bot_response is the ground truth
     
     st.session_state["messages"].append({"role": "assistant", "content": bot_response})
     
     with st.chat_message("assistant"):
         st.markdown(bot_response)
-    
+
+    # Prepare data for evaluation
+    eval_data = {
+        "question": user_input,
+        "contexts": response["context"] if "context" in response else [],
+        "answer": bot_response,
+        "ground_truth": gt_response
+    }
+
+    # Create a Dataset for evaluation
+    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
+
+    # Evaluate the conversation data
+    result = evaluate(
+        dataset_eval,
+        metrics=[
+            context_relevancy,
+            faithfulness,
+            answer_relevancy,
+            context_recall,
+            harmfulness,
+            answer_correctness
+        ],
+    )
+    eval_df = result.to_pandas()
+
+    # Print eval score
+    st.write("Evaluation Metrics:")
+    st.write(f"BLEU score: {round(bleu_score(gt_response, bot_response), 6)}")
+    st.write(f"Edit distance: {edit_distance(gt_response, bot_response)}")
+    st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
+    st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
+    st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
+    st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
+    st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
+    st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
+
     # Retrieve documents and prepare the content for download
     docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
     retrieved_docs_content = save_retrieved_docs_to_file(docs)
