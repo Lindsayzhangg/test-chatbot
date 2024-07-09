@@ -171,4 +171,60 @@ def handle_chat():
         inf_retrieved_context = inf_result.get("context", "Nothing")
         gt_retrieved_context = gt_result.get("context", "Nothing")
         # Extract text content from Document objects
-        inf_context_text = [doc.page
+        inf_context_text = [doc.page_content for doc in inf_retrieved_context]
+        # Collect conversation data
+        st.session_state.conversation_data.append({
+            "input": user_input,
+            "inf_response": inf_response,
+            "gt_response": gt_response,
+            "inf_context": inf_context_text,
+        })
+        # Prepare data for evaluation
+        eval_data = {
+            "question": user_input,
+            "contexts": [d["inf_context"] for d in st.session_state.conversation_data],
+            "answer": [d["inf_response"] for d in st.session_state.conversation_data],
+            "ground_truth": [d["gt_response"] for d in st.session_state.conversation_data]
+        }
+        # Create a Dataset for evaluation
+        dataset_eval = Dataset.from_pandas(pd.DataFrame(eval_data))
+
+        # Evaluate the conversation data
+        result = evaluate(
+            dataset_eval,
+            metrics=[
+                context_relevancy,
+                faithfulness,
+                answer_relevancy,
+                context_recall,
+                harmfulness,
+                answer_correctness
+            ],
+        )
+        eval_df = result.to_pandas()
+        # Display responses and evaluation scores
+        st.markdown("### Inference bot response")
+        st.write(inf_response)
+        st.markdown("### Ground-truth bot response")
+        st.write(gt_response)
+        st.markdown("### Evaluation Scores")
+        st.write(f"BLEU score: {round(bleu_score(gt_response, inf_response), 6)}")
+        st.write(f"Edit distance: {edit_distance(gt_response, inf_response)}")
+        st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
+        st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
+        st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
+        st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
+        st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
+        st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
+
+if user_input:
+    handle_chat()
+
+# Display conversation history
+if st.session_state.conversation_data:
+    st.markdown("## Conversation History")
+    for i, data in enumerate(st.session_state.conversation_data):
+        st.write(f"**You:** {data['input']}")
+        st.write(f"**Inference bot:** {data['inf_response']}")
+        st.write(f"**Ground-truth bot:** {data['gt_response']}")
+        st.write("---")
