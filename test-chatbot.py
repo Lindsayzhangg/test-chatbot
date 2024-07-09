@@ -121,8 +121,8 @@ def generate_presigned_url(s3_client, s3_uri):
     return presigned_url
 
 # Function to retrieve documents, generate URLs, and format the response
-def retrieve_and_format_response(user_input, retriever, llm):
-    response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
+def retrieve_and_format_response(user_input, retriever, llm_chain):
+    response = llm_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
     return response
 
 # New function to save retrieved documents to a file without sensitive information
@@ -163,7 +163,7 @@ s3_client = boto3.client(
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 llm_inference = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
-llm_groundtruth = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)  # Use a different LLM for ground truth
+llm_groundtruth = ChatOpenAI(model="gpt-4", openai_api_key=OPENAI_API_KEY)  # Use a different LLM for ground truth
 
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
