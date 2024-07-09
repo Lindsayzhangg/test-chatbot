@@ -97,6 +97,9 @@ st.markdown(
     .custom-title {
         color: grey; /* Change the title font color to grey */
     }
+    .st-chat-message {
+        color: black; /* Change chat message text color to black */
+        }
     </style>
     """,
     unsafe_allow_html=True
