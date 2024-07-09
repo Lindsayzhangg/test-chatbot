@@ -344,7 +344,7 @@ if user_input:
                 harmfulness,
                 answer_correctness
             ],
-            raise_exceptions=True  # Ensure exceptions are raised
+            raise_exceptions=False  # Don't raise exceptions
         )
         eval_df = result.to_pandas()
 
