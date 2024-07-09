@@ -152,6 +152,9 @@ aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
 aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
 aws_region = st.secrets["aws"]["aws_region"]
 
+# Set environment variable for OpenAI API key
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
 # Initialize boto3 S3 client
 s3_client = boto3.client(
     's3',
