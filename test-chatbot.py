@@ -94,6 +94,9 @@ st.markdown(
         background-color: #1e90ff; 
         color: white !important; 
     }
+    .stTitle {
+        color: #808080; /* 设置标题颜色为灰色 */
+    }
     </style>
     """,
     unsafe_allow_html=True
