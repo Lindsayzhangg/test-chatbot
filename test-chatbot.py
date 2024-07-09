@@ -1,4 +1,4 @@
-1. import os
+import os
 import numpy as np
 import pandas as pd
 import nltk
