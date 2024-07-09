@@ -78,7 +78,7 @@ st.markdown(
         border: 2px solid #4CAF50;
     }
     .stTextInput>div>div>input:focus {
-        border: 2px solid #1e90ff !important; 
+        border: 2px solid #1e90ff !重要; 
         box-shadow: none !重要; 
     }
 
@@ -162,7 +162,8 @@ s3_client = boto3.client(
 
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
+llm_inference = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+llm_groundtruth = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)  # Use a different LLM for ground truth
 
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
@@ -192,31 +193,19 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-history_aware_retriever = create_history_aware_retriever(
-    llm, retriever, contextualize_q_prompt
+history_aware_retriever_inference = create_history_aware_retriever(
+    llm_inference, retriever, contextualize_q_prompt
 )
 
-system_prompt = (
-    "You are an assistant for question-answering tasks. "
-    "Use the following pieces of retrieved context to answer "
-    "the question. If you don't know the answer, say that you "
-    "don't know. Use three sentences maximum and keep the "
-    "answer concise."
-    "\n\n"
-    "{context}"
+history_aware_retriever_groundtruth = create_history_aware_retriever(
+    llm_groundtruth, retriever, contextualize_q_prompt
 )
 
-qa_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-)
+question_answer_chain_inference = create_stuff_documents_chain(llm_inference, retrieval_qa_chat_prompt)
+question_answer_chain_groundtruth = create_stuff_documents_chain(llm_groundtruth, retrieval_qa_chat_prompt)
 
-question_answer_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prompt)
-
-rag_retreival_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+rag_retreival_chain_inference = create_retrieval_chain(history_aware_retriever_inference, question_answer_chain_inference)
+rag_retreival_chain_groundtruth = create_retrieval_chain(history_aware_retriever_groundtruth, question_answer_chain_groundtruth)
 
 # Initialize memory
 memory = ConversationBufferMemory()
@@ -229,16 +218,24 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-conversational_rag_chain = RunnableWithMessageHistory(
-    rag_retreival_chain,
+conversational_rag_chain_inference = RunnableWithMessageHistory(
+    rag_retreival_chain_inference,
     get_session_history,
     input_messages_key="input",
     history_messages_key="chat_history",
     output_messages_key="answer",
 )
 
-def retrieve_and_format_response(user_input, retriever, llm):
-    response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
+conversational_rag_chain_groundtruth = RunnableWithMessageHistory(
+    rag_retreival_chain_groundtruth,
+    get_session_history,
+    input_messages_key="input",
+    history_messages_key="chat_history",
+    output_messages_key="answer",
+)
+
+def retrieve_and_format_response(user_input, retriever, llm_chain):
+    response = llm_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
     return response
 
 # Additional Functions for Evaluation Metrics from Code 1
@@ -294,8 +291,8 @@ if user_input:
     
     # Generate and display bot response
     with st.spinner("Thinking..."):
-        inf_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
-        gt_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]  # Replace with actual ground truth
+        inf_response = retrieve_and_format_response(user_input, retriever, conversational_rag_chain_inference)["answer"]
+        gt_response = retrieve_and_format_response(user_input, retriever, conversational_rag_chain_groundtruth)["answer"]
     
     st.session_state["messages"].append({"role": "assistant", "content": inf_response})
     
@@ -319,8 +316,8 @@ if user_input:
 
     # Evaluation
     eval_data = {
-        "question": user_input,
-        "contexts": [" ".join([d.page_content for d in docs])],  # Combine retrieved documents into a single string
+        "question": [user_input],
+        "contexts": [[" ".join([d.page_content for d in docs])]],  # Combine retrieved documents into a single string and put into a list
         "answer": [inf_response],
         "ground_truth": [gt_response]
     }
