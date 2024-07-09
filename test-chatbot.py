@@ -162,6 +162,8 @@ s3_client = boto3.client(
 
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
+
+# Initialize the ChatOpenAI instances with the API key
 llm_inference = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
 llm_groundtruth = ChatOpenAI(model="gpt-4", openai_api_key=OPENAI_API_KEY)  # Use a different LLM for ground truth
 
@@ -357,7 +359,7 @@ if user_input:
 if st.button("End Conversation"):
     # Save chat history to a file and upload to S3
     session_id = str(uuid.uuid4())
-    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
+    chat_history = "\n.join([f"{msg['role']}: {msg['content']}" for msg in st.session_state["messages"]])
     local_filename = f"chat_history_{session_id}.txt"
     with open(local_filename, 'w') as file:
         file.write(chat_history)
