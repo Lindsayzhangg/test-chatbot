@@ -94,17 +94,16 @@ st.markdown(
         background-color: #1e90ff; 
         color: white !important; 
     }
-    .stTitle {
-        color: #808080; /* 设置标题颜色为灰色 */
-        font-size: 48px; /* 设置标题字体大小 */
-        font-weight: bold; /* 设置标题字体粗细 */
+    .custom-title {
+        color: grey; /* Change the title font color to grey */
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.markdown('<div class="custom-title">Patient Chatbot with Retrieval Abilities</div>', unsafe_allow_html=True)
+# Custom title
+st.markdown("<h1 class='custom-title'>Patient Chatbot with Retrieval Abilities</h1>", unsafe_allow_html=True)
 
 # Function to generate pre-signed URL
 def generate_presigned_url(s3_client, s3_uri):
