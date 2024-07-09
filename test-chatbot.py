@@ -96,7 +96,7 @@ st.markdown(
     }
     .stTitle {
         color: #808080; /* 设置标题颜色为灰色 */
-        font-size: 20px; /* 设置标题字体大小 */
+        font-size: 48px; /* 设置标题字体大小 */
         font-weight: bold; /* 设置标题字体粗细 */
     }
     </style>
