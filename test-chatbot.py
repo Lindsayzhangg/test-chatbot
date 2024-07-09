@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore")
 # Set up Streamlit app
 st.set_page_config(page_title="Patient Chatbot", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
-    """
+        """
     <style>
     .main {
         background-color: #f0f8ff;
@@ -97,16 +97,13 @@ st.markdown(
     .custom-title {
         color: grey; /* Change the title font color to grey */
     }
-    .element-container p {
-        color: black !important; /* Change the chat message font color to black */
-    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 # Custom title
-st.markdown("<h1 class='custom-title'>Hello! How Can I Assist You Today?😊</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='custom-title'>Patient Chatbot with Retrieval Abilities</h1>", unsafe_allow_html=True)
 
 # Function to generate pre-signed URL
 def generate_presigned_url(s3_client, s3_uri):
