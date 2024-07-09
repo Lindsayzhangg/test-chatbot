@@ -85,7 +85,6 @@ groundtruth_llm = ChatOpenAI(model="gpt-4o")
 
 # Initialize the retriever using PineconeVectorStore
 ## Embeddings HAVE to be VOYAGE because Pinecone dataset was ingested using VOYAGE
-pinecone.init(api_key=os.environ["PINECONE_API_KEY"], environment="us-east-1")  # Replace with your environment
 model_name = "voyage-large-2"
 embedding_function = VoyageAIEmbeddings(
     model=model_name,
