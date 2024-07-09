@@ -1,4 +1,4 @@
-import os
+1. import os
 import numpy as np
 import pandas as pd
 import nltk
@@ -23,7 +23,6 @@ from ragas import evaluate
 from datasets import Dataset
 import streamlit as st
 import warnings
-import traceback
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -86,6 +85,7 @@ groundtruth_llm = ChatOpenAI(model="gpt-4o")
 
 # Initialize the retriever using PineconeVectorStore
 ## Embeddings HAVE to be VOYAGE because Pinecone dataset was ingested using VOYAGE
+os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 model_name = "voyage-large-2"
 embedding_function = VoyageAIEmbeddings(
     model=model_name,
@@ -183,42 +183,33 @@ def handle_chat():
         # Create a Dataset for evaluation
         dataset_eval = Dataset.from_pandas(pd.DataFrame(eval_data))
 
-        # Debug: Print dataset_eval to ensure it's formatted correctly
-        st.write("Debug: Dataset for Evaluation")
-        st.write(dataset_eval)
-
-        try:
-            # Evaluate the conversation data
-            result = evaluate(
-                dataset_eval,
-                metrics=[
-                    context_relevancy,
-                    faithfulness,
-                    answer_relevancy,
-                    context_recall,
-                    harmfulness,
-                    answer_correctness
-                ],
-                raise_exceptions=False  # This will prevent the program from stopping and provide more context
-            )
-            eval_df = result.to_pandas()
-            # Display responses and evaluation scores
-            st.markdown("### Inference bot response")
-            st.write(inf_response)
-            st.markdown("### Ground-truth bot response")
-            st.write(gt_response)
-            st.markdown("### Evaluation Scores")
-            st.write(f"BLEU score: {round(bleu_score(gt_response, inf_response), 6)}")
-            st.write(f"Edit distance: {edit_distance(gt_response, inf_response)}")
-            st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
-            st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
-            st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
-            st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
-            st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
-            st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
-        except Exception as e:
-            st.error(f"Evaluation failed: {e}")
-            st.error(traceback.format_exc())  # Print the full traceback for debugging
+        # Evaluate the conversation data
+        result = evaluate(
+            dataset_eval,
+            metrics=[
+                context_relevancy,
+                faithfulness,
+                answer_relevancy,
+                context_recall,
+                harmfulness,
+                answer_correctness
+            ],
+        )
+        eval_df = result.to_pandas()
+        # Display responses and evaluation scores
+        st.markdown("### Inference bot response")
+        st.write(inf_response)
+        st.markdown("### Ground-truth bot response")
+        st.write(gt_response)
+        st.markdown("### Evaluation Scores")
+        st.write(f"BLEU score: {round(bleu_score(gt_response, inf_response), 6)}")
+        st.write(f"Edit distance: {edit_distance(gt_response, inf_response)}")
+        st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
+        st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
+        st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
+        st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
+        st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
+        st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
 
 if user_input:
     handle_chat()
@@ -231,3 +222,4 @@ if st.session_state.conversation_data:
         st.write(f"**Inference bot:** {data['inf_response']}")
         st.write(f"**Ground-truth bot:** {data['gt_response']}")
         st.write("---")
+
