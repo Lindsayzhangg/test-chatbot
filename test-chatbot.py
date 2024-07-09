@@ -29,6 +29,13 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain.chains import create_history_aware_retriever
 from dotenv import load_dotenv
+import nltk
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from ragas.metrics import context_relevancy, answer_relevancy, faithfulness, context_recall, answer_correctness
+from ragas.metrics.critique import harmfulness
+from ragas import evaluate
+from datasets import Dataset
+import pandas as pd
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -36,7 +43,7 @@ warnings.filterwarnings("ignore")
 # Set up Streamlit app
 st.set_page_config(page_title="Patient Chatbot", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
-        """
+    """
     <style>
     .main {
         background-color: #f0f8ff;
@@ -117,11 +124,6 @@ def generate_presigned_url(s3_client, s3_uri):
     )
     return presigned_url
 
-# Function to retrieve documents, generate URLs, and format the response
-def retrieve_and_format_response(user_input, retriever, llm):
-    response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
-    return response
-
 # New function to save retrieved documents to a file without sensitive information
 def save_retrieved_docs_to_file(docs):
     retrieved_docs_content = []
@@ -159,7 +161,8 @@ s3_client = boto3.client(
 
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
+inference_llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+groundtruth_llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
@@ -189,8 +192,11 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-history_aware_retriever = create_history_aware_retriever(
-    llm, retriever, contextualize_q_prompt
+inf_history_aware_retriever = create_history_aware_retriever(
+    inference_llm, retriever, contextualize_q_prompt
+)
+gt_history_aware_retriever = create_history_aware_retriever(
+    groundtruth_llm, retriever, contextualize_q_prompt
 )
 
 system_prompt = (
@@ -211,9 +217,11 @@ qa_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-question_answer_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prompt)
+inf_question_answer_chain = create_stuff_documents_chain(inference_llm, retrieval_qa_chat_prompt)
+gt_question_answer_chain = create_stuff_documents_chain(groundtruth_llm, retrieval_qa_chat_prompt)
 
-rag_retreival_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+inf_rag_retreival_chain = create_retrieval_chain(inf_history_aware_retriever, inf_question_answer_chain)
+gt_rag_retreival_chain = create_retrieval_chain(gt_history_aware_retriever, gt_question_answer_chain)
 
 # Initialize memory
 memory = ConversationBufferMemory()
@@ -226,8 +234,15 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-conversational_rag_chain = RunnableWithMessageHistory(
-    rag_retreival_chain,
+inf_conversational_rag_chain = RunnableWithMessageHistory(
+    inf_rag_retreival_chain,
+    get_session_history,
+    input_messages_key="input",
+    history_messages_key="chat_history",
+    output_messages_key="answer",
+)
+gt_conversational_rag_chain = RunnableWithMessageHistory(
+    gt_rag_retreival_chain,
     get_session_history,
     input_messages_key="input",
     history_messages_key="chat_history",
@@ -235,8 +250,37 @@ conversational_rag_chain = RunnableWithMessageHistory(
 )
 
 def retrieve_and_format_response(user_input, retriever, llm):
-    response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
+    response = inf_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
     return response
+
+def bleu_score(reference, hypothesis):
+    reference_tokens = [nltk.word_tokenize(reference)]
+    hypothesis_tokens = nltk.word_tokenize(hypothesis)
+    smoothing_function = SmoothingFunction().method1
+    return sentence_bleu(reference_tokens, hypothesis_tokens, smoothing_function=smoothing_function)
+
+def edit_distance(reference, hypothesis):
+    m = len(reference) + 1
+    n = len(hypothesis) + 1
+
+    # Create a matrix to store the distances
+    dp = np.zeros((m, n), dtype=int)
+
+    # Initialize the first row and column
+    for i in range(m):
+        dp[i][0] = i
+    for j in range(n):
+        dp[0][j] = j
+
+    # Compute the edit distance
+    for i in range(1, m):
+        for j in range(1, n):
+            cost = 0 if reference[i-1] == hypothesis[j-1] else 1
+            dp[i][j] = min(dp[i-1][j] + 1,        # Deletion
+                           dp[i][j-1] + 1,        # Insertion
+                           dp[i-1][j-1] + cost)   # Substitution
+
+    return dp[m-1][n-1]
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -260,12 +304,40 @@ if user_input:
     
     # Generate and display bot response
     with st.spinner("Thinking..."):
-        bot_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
-    
-    st.session_state["messages"].append({"role": "assistant", "content": bot_response})
+        inf_response = inf_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "inference"}})
+        gt_response = gt_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "ground_truth"}})
+        inf_bot_response = inf_response["answer"]
+        gt_bot_response = gt_response["answer"]
+
+        # Prepare data for evaluation
+        eval_data = {
+            "question": user_input,
+            "contexts": inf_response.get("context", []),
+            "answer": inf_bot_response,
+            "ground_truth": gt_bot_response
+        }
+
+        # Create a Dataset for evaluation
+        dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
+
+        # Evaluate the conversation data
+        result = evaluate(
+            dataset_eval,
+            metrics=[
+                context_relevancy,
+                faithfulness,
+                answer_relevancy,
+                context_recall,
+                harmfulness,
+                answer_correctness
+            ],
+        )
+        eval_df = result.to_pandas()
+
+    st.session_state["messages"].append({"role": "assistant", "content": inf_bot_response})
     
     with st.chat_message("assistant"):
-        st.markdown(bot_response)
+        st.markdown(inf_bot_response)
     
     # Retrieve documents and prepare the content for download
     docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
@@ -281,6 +353,17 @@ if user_input:
         file_name="retrieved_documents.json",
         mime="application/json"
     )
+
+    # Display evaluation metrics
+    st.markdown("### Evaluation Metrics")
+    st.markdown(f"**BLEU Score**: {round(bleu_score(gt_bot_response, inf_bot_response), 6)}")
+    st.markdown(f"**Edit Distance**: {edit_distance(gt_bot_response, inf_bot_response)}")
+    st.markdown(f"**Context Relevancy**: {round(eval_df.context_relevancy.loc[0], 6)}")
+    st.markdown(f"**Faithfulness**: {eval_df.faithfulness.loc[0]}")
+    st.markdown(f"**Answer Relevancy**: {round(eval_df.answer_relevancy.loc[0], 6)}")
+    st.markdown(f"**Answer Correctness**: {eval_df.answer_correctness.loc[0]}")
+    st.markdown(f"**Context Recall**: {round(eval_df.context_recall.loc[0], 6)}")
+    st.markdown(f"**Harmfulness**: {round(eval_df.harmfulness.loc[0], 6)}")
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
