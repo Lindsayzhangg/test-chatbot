@@ -241,6 +241,37 @@ def retrieve_and_format_response(user_input, retriever, llm):
     response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
     return response
 
+# Additional Functions for Evaluation Metrics from Code 1
+
+def bleu_score(reference, hypothesis):
+    reference_tokens = [nltk.word_tokenize(reference)]
+    hypothesis_tokens = nltk.word_tokenize(hypothesis)
+    smoothing_function = SmoothingFunction().method1
+    return sentence_bleu(reference_tokens, hypothesis_tokens, smoothing_function=smoothing_function)
+
+def edit_distance(reference, hypothesis):
+    m = len(reference) + 1
+    n = len(hypothesis) + 1
+
+    # Create a matrix to store the distances
+    dp = np.zeros((m, n), dtype=int)
+
+    # Initialize the first row and column
+    for i in range(m):
+        dp[i][0] = i
+    for j in range(n):
+        dp[0][j] = j
+
+    # Compute the edit distance
+    for i in range(1, m):
+        for j in range(1, n):
+            cost = 0 if reference[i-1] == hypothesis[j-1] else 1
+            dp[i][j] = min(dp[i-1][j] + 1,        # Deletion
+                           dp[i][j-1] + 1,        # Insertion
+                           dp[i-1][j-1] + cost)   # Substitution
+
+    return dp[m-1][n-1]
+
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
@@ -307,7 +338,8 @@ if user_input:
         ],
     )
     eval_df = result.to_pandas()
-    st.write("Evaluation Metrics:")
+
+    st.write("### Evaluation Metrics")
     st.write("BLEU score:", round(bleu_score(gt_response, inf_response), 6))
     st.write("Edit distance:", edit_distance(gt_response, inf_response))
     st.write("Context relevancy:", round(eval_df.context_relevancy.loc[0], 6))
@@ -330,34 +362,3 @@ if st.button("End Conversation"):
     st.success(f"Chat history saved and uploaded to S3 as '{chat_history_key}'")
     # Clear chat history from session state
     st.session_state["messages"] = []
-
-# Additional Functions for Evaluation Metrics from Code 1
-
-def bleu_score(reference, hypothesis):
-    reference_tokens = [nltk.word_tokenize(reference)]
-    hypothesis_tokens = nltk.word_tokenize(hypothesis)
-    smoothing_function = SmoothingFunction().method1
-    return sentence_bleu(reference_tokens, hypothesis_tokens, smoothing_function=smoothing_function)
-
-def edit_distance(reference, hypothesis):
-    m = len(reference) + 1
-    n = len(hypothesis) + 1
-
-    # Create a matrix to store the distances
-    dp = np.zeros((m, n), dtype=int)
-
-    # Initialize the first row and column
-    for i in range(m):
-        dp[i][0] = i
-    for j in range(n):
-        dp[0][j] = j
-
-    # Compute the edit distance
-    for i in range(1, m):
-        for j in range(1, n):
-            cost = 0 if reference[i-1] == hypothesis[j-1] else 1
-            dp[i][j] = min(dp[i-1][j] + 1,        # Deletion
-                           dp[i][j-1] + 1,        # Insertion
-                           dp[i-1][j-1] + cost)   # Substitution
-
-    return dp[m-1][n-1]
