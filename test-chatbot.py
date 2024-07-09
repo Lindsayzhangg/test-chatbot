@@ -167,8 +167,8 @@ s3_client = boto3.client(
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 
 # Initialize the ChatOpenAI instances with the API key
-llm_inference = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
-llm_groundtruth = ChatOpenAI(model="gpt-4", openai_api_key=OPENAI_API_KEY)  # Use a different LLM for ground truth
+llm_inference = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=os.environ["OPENAI_API_KEY"])
+llm_groundtruth = ChatOpenAI(model="gpt-4", openai_api_key=os.environ["OPENAI_API_KEY"])  # Use a different LLM for ground truth
 
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
@@ -355,7 +355,7 @@ if user_input:
         st.write("Answer correctness:", eval_df.answer_correctness.loc[0])
         st.write("Context recall:", round(eval_df.context_recall.loc[0], 6))
         st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
-    except ValueError as e:
+    except Exception as e:
         st.error(f"Error in evaluation: {str(e)}")
 
 # Add an "End Conversation" button
