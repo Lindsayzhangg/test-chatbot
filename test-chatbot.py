@@ -23,6 +23,7 @@ from ragas import evaluate
 from datasets import Dataset
 import streamlit as st
 import warnings
+import traceback
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -181,7 +182,7 @@ def handle_chat():
         }
         # Create a Dataset for evaluation
         dataset_eval = Dataset.from_pandas(pd.DataFrame(eval_data))
-        
+
         # Debug: Print dataset_eval to ensure it's formatted correctly
         st.write("Debug: Dataset for Evaluation")
         st.write(dataset_eval)
@@ -198,6 +199,7 @@ def handle_chat():
                     harmfulness,
                     answer_correctness
                 ],
+                raise_exceptions=False  # This will prevent the program from stopping and provide more context
             )
             eval_df = result.to_pandas()
             # Display responses and evaluation scores
@@ -216,6 +218,7 @@ def handle_chat():
             st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
         except Exception as e:
             st.error(f"Evaluation failed: {e}")
+            st.error(traceback.format_exc())  # Print the full traceback for debugging
 
 if user_input:
     handle_chat()
