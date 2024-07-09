@@ -320,34 +320,41 @@ if user_input:
     # Evaluation
     eval_data = {
         "question": user_input,
-        "answer": inf_response,
-        "ground_truth": gt_response
+        "contexts": [" ".join([d.page_content for d in docs])],  # Combine retrieved documents into a single string
+        "answer": [inf_response],
+        "ground_truth": [gt_response]
     }
 
-    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
+    dataset_eval = Dataset.from_pandas(pd.DataFrame(eval_data))
 
-    result = evaluate(
-        dataset_eval,
-        metrics=[
-            context_relevancy,
-            faithfulness,
-            answer_relevancy,
-            context_recall,
-            harmfulness,
-            answer_correctness
-        ],
-    )
-    eval_df = result.to_pandas()
+    st.write("#### Debug: Dataset for Evaluation")
+    st.write(eval_data)
 
-    st.write("### Evaluation Metrics")
-    st.write("BLEU score:", round(bleu_score(gt_response, inf_response), 6))
-    st.write("Edit distance:", edit_distance(gt_response, inf_response))
-    st.write("Context relevancy:", round(eval_df.context_relevancy.loc[0], 6))
-    st.write("Faithfulness:", eval_df.faithfulness.loc[0])
-    st.write("Answer relevancy:", round(eval_df.answer_relevancy.loc[0], 6))
-    st.write("Answer correctness:", eval_df.answer_correctness.loc[0])
-    st.write("Context recall:", round(eval_df.context_recall.loc[0], 6))
-    st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
+    try:
+        result = evaluate(
+            dataset_eval,
+            metrics=[
+                context_relevancy,
+                faithfulness,
+                answer_relevancy,
+                context_recall,
+                harmfulness,
+                answer_correctness
+            ],
+        )
+        eval_df = result.to_pandas()
+
+        st.write("### Evaluation Metrics")
+        st.write("BLEU score:", round(bleu_score(gt_response, inf_response), 6))
+        st.write("Edit distance:", edit_distance(gt_response, inf_response))
+        st.write("Context relevancy:", round(eval_df.context_relevancy.loc[0], 6))
+        st.write("Faithfulness:", eval_df.faithfulness.loc[0])
+        st.write("Answer relevancy:", round(eval_df.answer_relevancy.loc[0], 6))
+        st.write("Answer correctness:", eval_df.answer_correctness.loc[0])
+        st.write("Context recall:", round(eval_df.context_recall.loc[0], 6))
+        st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
+    except ValueError as e:
+        st.error(f"Error in evaluation: {str(e)}")
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
