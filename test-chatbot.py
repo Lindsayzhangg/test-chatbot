@@ -36,6 +36,7 @@ import pandas as pd
 import numpy as np
 import nltk
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+import traceback
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -99,7 +100,7 @@ st.markdown(
     .stDownloadButton>button:active,
     .stDownloadButton>button:focus {
         background-color: #1e90ff; 
-        color: white !important; /* 确保点击后文字颜色为白色 */
+        color: white !重要; /* 确保点击后文字颜色为白色 */
     }
     </style>
     """,
@@ -343,6 +344,7 @@ if user_input:
                 harmfulness,
                 answer_correctness
             ],
+            raise_exceptions=True  # Ensure exceptions are raised
         )
         eval_df = result.to_pandas()
 
@@ -357,6 +359,7 @@ if user_input:
         st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
     except Exception as e:
         st.error(f"Error in evaluation: {str(e)}")
+        st.error(traceback.format_exc())  # Print the full traceback for debugging
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
