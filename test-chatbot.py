@@ -249,9 +249,10 @@ gt_conversational_rag_chain = RunnableWithMessageHistory(
     output_messages_key="answer",
 )
 
-def retrieve_and_format_response(user_input, retriever, llm):
-    response = inf_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
-    return response
+def retrieve_and_format_response(user_input):
+    inf_response = inf_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "inference"}})
+    gt_response = gt_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "ground_truth"}})
+    return inf_response, gt_response
 
 def bleu_score(reference, hypothesis):
     reference_tokens = [nltk.word_tokenize(reference)]
@@ -304,8 +305,7 @@ if user_input:
     
     # Generate and display bot response
     with st.spinner("Thinking..."):
-        inf_response = inf_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "inference"}})
-        gt_response = gt_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "ground_truth"}})
+        inf_response, gt_response = retrieve_and_format_response(user_input)
         inf_bot_response = inf_response["answer"]
         gt_bot_response = gt_response["answer"]
 
