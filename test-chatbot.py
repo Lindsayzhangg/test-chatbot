@@ -78,8 +78,8 @@ def edit_distance(reference, hypothesis):
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 
 # Define LLMs - inference and ground truth
-inference_llm = ChatGroq(model_name="llama3-8b-8192")
-# inference_llm = ChatOpenAI(model="gpt-3.5-turbo")
+
+inference_llm = ChatOpenAI(model="gpt-3.5-turbo")
 # inference_llm = ChatOpenAI(model="gpt-4o")
 groundtruth_llm = ChatOpenAI(model="gpt-4o")
 
