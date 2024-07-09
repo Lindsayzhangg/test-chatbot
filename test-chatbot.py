@@ -31,7 +31,6 @@ warnings.filterwarnings("ignore")
 OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
 VOYAGE_AI_API_KEY = st.secrets["api_keys"]["VOYAGE_AI_API_KEY"]
 PINECONE_API_KEY = st.secrets["api_keys"]["PINECONE_API_KEY"]
-PINECONE_ENV = st.secrets["api_keys"]["PINECONE_ENV"]  # Ensure you have this in your secrets
 aws_access_key_id = st.secrets["aws"]["aws_access_key_id"]
 aws_secret_access_key = st.secrets["aws"]["aws_secret_access_key"]
 aws_region = st.secrets["aws"]["aws_region"]
@@ -86,22 +85,17 @@ groundtruth_llm = ChatOpenAI(model="gpt-4o")
 
 # Initialize the retriever using PineconeVectorStore
 ## Embeddings HAVE to be VOYAGE because Pinecone dataset was ingested using VOYAGE
+os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 model_name = "voyage-large-2"
 embedding_function = VoyageAIEmbeddings(
     model=model_name,
     voyage_api_key=os.environ["VOYAGE_AI_API_KEY"]
 )
-
-try:
-    vector_store = PineconeVectorStore.from_existing_index(
-        embedding=embedding_function,
-        index_name="drugbank",
-        environment=PINECONE_ENV  # Specify the Pinecone environment
-    )
-    retriever = vector_store.as_retriever()
-except ValueError as e:
-    st.error(f"Error initializing Pinecone index: {e}")
-    st.stop()
+vector_store = PineconeVectorStore.from_existing_index(
+    embedding=embedding_function,
+    index_name="drugbank"
+)
+retriever = vector_store.as_retriever()
 
 contextualize_q_system_prompt = (
     "Given a chat history and the latest user question which might reference context in the chat history, "
