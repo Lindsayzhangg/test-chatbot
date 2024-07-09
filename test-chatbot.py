@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore")
 # Set up Streamlit app
 st.set_page_config(page_title="Patient Chatbot", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
-        """
+    """
     <style>
     .main {
         background-color: #f0f8ff;
@@ -97,9 +97,77 @@ st.markdown(
     .custom-title {
         color: grey; /* Change the title font color to grey */
     }
-    .st-chat-message {
-        color: black; /* Change chat message text color to black */
-        }
+    .element-container p {
+        color: black !important; /* Change the chat message font color to black */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)st.markdown(
+    """
+    <style>
+    .main {
+        background-color: #f0f8ff;
+        color: #2f4f4f;
+        font-family: 'Arial', sans-serif;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+    .stButton>button:hover,
+    .stButton>button:active,
+    .stButton>button:focus {
+        background-color: #1e90ff; 
+        color: white !important; 
+    }
+    .stTextInput>div>div>input {
+        background-color: #f8f8f8;
+        color: #2f4f4f;
+        font-size: 16px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid #4CAF50;
+    }
+    .stTextInput>div>div>input:focus {
+        border: 2px solid #1e90ff !important; 
+        box-shadow: none !important; 
+    }
+
+    .stDownloadButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+    .stDownloadButton>button:hover,
+    .stDownloadButton>button:active,
+    .stDownloadButton>button:focus {
+        background-color: #1e90ff; 
+        color: white !important; 
+    }
+    .custom-title {
+        color: grey; /* Change the title font color to grey */
+    }
+    .element-container p {
+        color: black !important; /* Change the chat message font color to black */
+    }
     </style>
     """,
     unsafe_allow_html=True
