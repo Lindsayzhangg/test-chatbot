@@ -28,7 +28,13 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_pinecone import PineconeVectorStore
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain.chains import create_history_aware_retriever
-from dotenv import load_dotenv
+from datasets import Dataset
+import numpy as np
+import pandas as pd
+import nltk
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from ragas.metrics import context_relevancy, answer_relevancy, faithfulness, context_recall, answer_correctness, harmfulness
+from ragas import evaluate
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -59,8 +65,8 @@ st.markdown(
     .stButton>button:hover,
     .stButton>button:active,
     .stButton>button:focus {
-        background-color: #1e90ff; 
-        color: white !important; 
+        background-color: #1e90ff; /* 将鼠标悬停和点击时的背景色改为蓝色 */
+        color: white !important; /* 将鼠标悬停和点击时的文字颜色改为白色 */
     }
     .stTextInput>div>div>input {
         background-color: #f8f8f8;
@@ -92,7 +98,7 @@ st.markdown(
     .stDownloadButton>button:active,
     .stDownloadButton>button:focus {
         background-color: #1e90ff; 
-        color: white !important; 
+        color: white !important; /* 确保点击后文字颜色为白色 */
     }
     </style>
     """,
@@ -128,7 +134,7 @@ def save_retrieved_docs_to_file(docs):
         })
     return json.dumps(retrieved_docs_content, indent=2)
 
-# Function to dynamically replace URL placeholders with pre-signed URLs
+# Function to dynamically replace URL placeholders with URLs
 def replace_placeholders_with_urls(content, s3_client):
     data = json.loads(content)
     for item in data:
@@ -156,6 +162,7 @@ s3_client = boto3.client(
 # Pull the retrieval QA chat prompt
 retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
+groundtruth_llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY)
 
 # Initialize the retriever using PineconeVectorStore
 model_name = "voyage-large-2"
@@ -211,6 +218,13 @@ question_answer_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prom
 
 rag_retreival_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
+# Groundtruth retriever chain
+gt_history_aware_retriever = create_history_aware_retriever(
+    groundtruth_llm, retriever, contextualize_q_prompt
+)
+gt_question_answer_chain = create_stuff_documents_chain(groundtruth_llm, retrieval_qa_chat_prompt)
+gt_rag_retreival_chain = create_retrieval_chain(gt_history_aware_retriever, gt_question_answer_chain)
+
 # Initialize memory
 memory = ConversationBufferMemory()
 
@@ -230,9 +244,52 @@ conversational_rag_chain = RunnableWithMessageHistory(
     output_messages_key="answer",
 )
 
+gt_conversational_rag_chain = RunnableWithMessageHistory(
+    gt_rag_retreival_chain,
+    get_session_history,
+    input_messages_key="input",
+    history_messages_key="chat_history",
+    output_messages_key="answer",
+)
+
 def retrieve_and_format_response(user_input, retriever, llm):
     response = conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
     return response
+
+def gt_retrieve_and_format_response(user_input, retriever, llm):
+    response = gt_conversational_rag_chain.invoke({"input": user_input}, config={"configurable": {"session_id": "test"}})
+    return response
+
+# BLEU score calculation
+def bleu_score(reference, hypothesis):
+    reference_tokens = [nltk.word_tokenize(reference)]
+    hypothesis_tokens = nltk.word_tokenize(hypothesis)
+    smoothing_function = SmoothingFunction().method1
+    return sentence_bleu(reference_tokens, hypothesis_tokens, smoothing_function=smoothing_function)
+
+# Edit distance calculation
+def edit_distance(reference, hypothesis):
+    m = len(reference) + 1
+    n = len(hypothesis) + 1
+
+    # Create a matrix to store the distances
+    dp = np.zeros((m, n), dtype=int)
+
+    # Initialize the first row and column
+    for i in range(m):
+        dp[i][0] = i
+    for j in range(n):
+        dp[0][j] = j
+
+    # Compute the edit distance
+    for i in range(1, m):
+        for j in range(1, n):
+            cost = 0 if reference[i-1] == hypothesis[j-1] else 1
+            dp[i][j] = min(dp[i-1][j] + 1,        # Deletion
+                           dp[i][j-1] + 1,        # Insertion
+                           dp[i-1][j-1] + cost)   # Substitution
+
+    return dp[m-1][n-1]
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -257,6 +314,7 @@ if user_input:
     # Generate and display bot response
     with st.spinner("Thinking..."):
         bot_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
+        gt_bot_response = gt_retrieve_and_format_response(user_input, retriever, groundtruth_llm)["answer"]
     
     st.session_state["messages"].append({"role": "assistant", "content": bot_response})
     
@@ -277,6 +335,41 @@ if user_input:
         file_name="retrieved_documents.json",
         mime="application/json"
     )
+    
+    # Prepare data for evaluation
+    eval_data = {
+        "question": user_input,
+        "contexts": [doc.page_content for doc in docs],
+        "answer": bot_response,
+        "ground_truth": gt_bot_response
+    }
+    
+    # Create a Dataset for evaluation
+    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
+
+    # Evaluate the conversation data
+    result = evaluate(
+        dataset_eval,
+        metrics=[
+            context_relevancy,
+            faithfulness,
+            answer_relevancy,
+            context_recall,
+            harmfulness,
+            answer_correctness
+        ],
+    )
+    eval_df = result.to_pandas()
+
+    # Print evaluation metrics
+    st.markdown(f"**BLEU score**: {round(bleu_score(gt_bot_response, bot_response), 6)}")
+    st.markdown(f"**Edit distance**: {edit_distance(gt_bot_response, bot_response)}")
+    st.markdown(f"**Context relevancy**: {round(eval_df.context_relevancy.loc[0], 6)}")
+    st.markdown(f"**Faithfulness**: {eval_df.faithfulness.loc[0]}")
+    st.markdown(f"**Answer relevancy**: {round(eval_df.answer_relevancy.loc[0], 6)}")
+    st.markdown(f"**Answer correctness**: {eval_df.answer_correctness.loc[0]}")
+    st.markdown(f"**Context recall**: {round(eval_df.context_recall.loc[0], 6)}")
+    st.markdown(f"**Harmfulness**: {round(eval_df.harmfulness.loc[0], 6)}")
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
