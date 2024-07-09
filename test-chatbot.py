@@ -181,34 +181,41 @@ def handle_chat():
         }
         # Create a Dataset for evaluation
         dataset_eval = Dataset.from_pandas(pd.DataFrame(eval_data))
+        
+        # Debug: Print dataset_eval to ensure it's formatted correctly
+        st.write("Debug: Dataset for Evaluation")
+        st.write(dataset_eval)
 
-        # Evaluate the conversation data
-        result = evaluate(
-            dataset_eval,
-            metrics=[
-                context_relevancy,
-                faithfulness,
-                answer_relevancy,
-                context_recall,
-                harmfulness,
-                answer_correctness
-            ],
-        )
-        eval_df = result.to_pandas()
-        # Display responses and evaluation scores
-        st.markdown("### Inference bot response")
-        st.write(inf_response)
-        st.markdown("### Ground-truth bot response")
-        st.write(gt_response)
-        st.markdown("### Evaluation Scores")
-        st.write(f"BLEU score: {round(bleu_score(gt_response, inf_response), 6)}")
-        st.write(f"Edit distance: {edit_distance(gt_response, inf_response)}")
-        st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
-        st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
-        st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
-        st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
-        st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
-        st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
+        try:
+            # Evaluate the conversation data
+            result = evaluate(
+                dataset_eval,
+                metrics=[
+                    context_relevancy,
+                    faithfulness,
+                    answer_relevancy,
+                    context_recall,
+                    harmfulness,
+                    answer_correctness
+                ],
+            )
+            eval_df = result.to_pandas()
+            # Display responses and evaluation scores
+            st.markdown("### Inference bot response")
+            st.write(inf_response)
+            st.markdown("### Ground-truth bot response")
+            st.write(gt_response)
+            st.markdown("### Evaluation Scores")
+            st.write(f"BLEU score: {round(bleu_score(gt_response, inf_response), 6)}")
+            st.write(f"Edit distance: {edit_distance(gt_response, inf_response)}")
+            st.write(f"Context relevancy: {round(eval_df.context_relevancy.loc[0], 6)}")
+            st.write(f"Faithfulness: {eval_df.faithfulness.loc[0]}")
+            st.write(f"Answer relevancy: {round(eval_df.answer_relevancy.loc[0], 6)}")
+            st.write(f"Answer correctness: {eval_df.answer_correctness.loc[0]}")
+            st.write(f"Context recall: {round(eval_df.context_recall.loc[0], 6)}")
+            st.write(f"Harmfulness: {round(eval_df.harmfulness.loc[0], 6)}")
+        except Exception as e:
+            st.error(f"Evaluation failed: {e}")
 
 if user_input:
     handle_chat()
