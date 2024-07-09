@@ -93,7 +93,7 @@ embedding_function = VoyageAIEmbeddings(
 )
 vector_store = PineconeVectorStore.from_existing_index(
     embedding=embedding_function,
-    index_name="drugbank"
+    index_name="test"
 )
 retriever = vector_store.as_retriever()
 
