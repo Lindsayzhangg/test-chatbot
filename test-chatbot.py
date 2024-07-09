@@ -102,7 +102,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title("Patient Chatbot with Retrieval Abilities")
+st.markdown('<div class="custom-title">Patient Chatbot with Retrieval Abilities</div>', unsafe_allow_html=True)
 
 # Function to generate pre-signed URL
 def generate_presigned_url(s3_client, s3_uri):
