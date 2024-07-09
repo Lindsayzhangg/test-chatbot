@@ -79,7 +79,7 @@ st.markdown(
     }
     .stTextInput>div>div>input:focus {
         border: 2px solid #1e90ff !important; 
-        box-shadow: none !important; 
+        box-shadow: none !重要; 
     }
 
     .stDownloadButton>button {
@@ -263,12 +263,13 @@ if user_input:
     
     # Generate and display bot response
     with st.spinner("Thinking..."):
-        bot_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
+        inf_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
+        gt_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]  # Replace with actual ground truth
     
-    st.session_state["messages"].append({"role": "assistant", "content": bot_response})
+    st.session_state["messages"].append({"role": "assistant", "content": inf_response})
     
     with st.chat_message("assistant"):
-        st.markdown(bot_response)
+        st.markdown(inf_response)
     
     # Retrieve documents and prepare the content for download
     docs = retriever.get_relevant_documents(user_input)  # Use retriever to get documents
@@ -284,6 +285,37 @@ if user_input:
         file_name="retrieved_documents.json",
         mime="application/json"
     )
+
+    # Evaluation
+    eval_data = {
+        "question": user_input,
+        "answer": inf_response,
+        "ground_truth": gt_response
+    }
+
+    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
+
+    result = evaluate(
+        dataset_eval,
+        metrics=[
+            context_relevancy,
+            faithfulness,
+            answer_relevancy,
+            context_recall,
+            harmfulness,
+            answer_correctness
+        ],
+    )
+    eval_df = result.to_pandas()
+    st.write("Evaluation Metrics:")
+    st.write("BLEU score:", round(bleu_score(gt_response, inf_response), 6))
+    st.write("Edit distance:", edit_distance(gt_response, inf_response))
+    st.write("Context relevancy:", round(eval_df.context_relevancy.loc[0], 6))
+    st.write("Faithfulness:", eval_df.faithfulness.loc[0])
+    st.write("Answer relevancy:", round(eval_df.answer_relevancy.loc[0], 6))
+    st.write("Answer correctness:", eval_df.answer_correctness.loc[0])
+    st.write("Context recall:", round(eval_df.context_recall.loc[0], 6))
+    st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
 
 # Add an "End Conversation" button
 if st.button("End Conversation"):
@@ -329,54 +361,3 @@ def edit_distance(reference, hypothesis):
                            dp[i-1][j-1] + cost)   # Substitution
 
     return dp[m-1][n-1]
-
-# Integration of Evaluation in the Conversation
-
-if user_input:
-    # Add user message to chat history
-    st.session_state["messages"].append({"role": "user", "content": user_input})
-
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    # Generate and display bot response
-    with st.spinner("Thinking..."):
-        inf_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
-        gt_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]  # Replace with actual ground truth
-
-    st.session_state["messages"].append({"role": "assistant", "content": inf_response})
-
-    with st.chat_message("assistant"):
-        st.markdown(inf_response)
-
-    # Evaluation
-    eval_data = {
-        "question": user_input,
-        "answer": inf_response,
-        "ground_truth": gt_response
-    }
-
-    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
-
-    result = evaluate(
-        dataset_eval,
-        metrics=[
-            context_relevancy,
-            faithfulness,
-            answer_relevancy,
-            context_recall,
-            harmfulness,
-            answer_correctness
-        ],
-    )
-    eval_df = result.to_pandas()
-    st.write("Evaluation Metrics:")
-    st.write("BLEU score:", round(bleu_score(gt_response, inf_response), 6))
-    st.write("Edit distance:", edit_distance(gt_response, inf_response))
-    st.write("Context relevancy:", round(eval_df.context_relevancy.loc[0], 6))
-    st.write("Faithfulness:", eval_df.faithfulness.loc[0])
-    st.write("Answer relevancy:", round(eval_df.answer_relevancy.loc[0], 6))
-    st.write("Answer correctness:", eval_df.answer_correctness.loc[0])
-    st.write("Context recall:", round(eval_df.context_recall.loc[0], 6))
-    st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
