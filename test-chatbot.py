@@ -28,7 +28,14 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_pinecone import PineconeVectorStore
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain.chains import create_history_aware_retriever
-from dotenv import load_dotenv
+from datasets import Dataset
+from ragas.metrics import context_relevancy, answer_relevancy, faithfulness, context_recall, answer_correctness
+from ragas.metrics.critique import harmfulness
+from ragas import evaluate
+import pandas as pd
+import numpy as np
+import nltk
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -36,7 +43,7 @@ warnings.filterwarnings("ignore")
 # Set up Streamlit app
 st.set_page_config(page_title="Patient Chatbot", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
-        """
+    """
     <style>
     .main {
         background-color: #f0f8ff;
@@ -291,3 +298,85 @@ if st.button("End Conversation"):
     st.success(f"Chat history saved and uploaded to S3 as '{chat_history_key}'")
     # Clear chat history from session state
     st.session_state["messages"] = []
+
+# Additional Functions for Evaluation Metrics from Code 1
+
+def bleu_score(reference, hypothesis):
+    reference_tokens = [nltk.word_tokenize(reference)]
+    hypothesis_tokens = nltk.word_tokenize(hypothesis)
+    smoothing_function = SmoothingFunction().method1
+    return sentence_bleu(reference_tokens, hypothesis_tokens, smoothing_function=smoothing_function)
+
+def edit_distance(reference, hypothesis):
+    m = len(reference) + 1
+    n = len(hypothesis) + 1
+
+    # Create a matrix to store the distances
+    dp = np.zeros((m, n), dtype=int)
+
+    # Initialize the first row and column
+    for i in range(m):
+        dp[i][0] = i
+    for j in range(n):
+        dp[0][j] = j
+
+    # Compute the edit distance
+    for i in range(1, m):
+        for j in range(1, n):
+            cost = 0 if reference[i-1] == hypothesis[j-1] else 1
+            dp[i][j] = min(dp[i-1][j] + 1,        # Deletion
+                           dp[i][j-1] + 1,        # Insertion
+                           dp[i-1][j-1] + cost)   # Substitution
+
+    return dp[m-1][n-1]
+
+# Integration of Evaluation in the Conversation
+
+if user_input:
+    # Add user message to chat history
+    st.session_state["messages"].append({"role": "user", "content": user_input})
+
+    # Display user message
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Generate and display bot response
+    with st.spinner("Thinking..."):
+        inf_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]
+        gt_response = retrieve_and_format_response(user_input, retriever, llm)["answer"]  # Replace with actual ground truth
+
+    st.session_state["messages"].append({"role": "assistant", "content": inf_response})
+
+    with st.chat_message("assistant"):
+        st.markdown(inf_response)
+
+    # Evaluation
+    eval_data = {
+        "question": user_input,
+        "answer": inf_response,
+        "ground_truth": gt_response
+    }
+
+    dataset_eval = Dataset.from_pandas(pd.DataFrame([eval_data]))
+
+    result = evaluate(
+        dataset_eval,
+        metrics=[
+            context_relevancy,
+            faithfulness,
+            answer_relevancy,
+            context_recall,
+            harmfulness,
+            answer_correctness
+        ],
+    )
+    eval_df = result.to_pandas()
+    st.write("Evaluation Metrics:")
+    st.write("BLEU score:", round(bleu_score(gt_response, inf_response), 6))
+    st.write("Edit distance:", edit_distance(gt_response, inf_response))
+    st.write("Context relevancy:", round(eval_df.context_relevancy.loc[0], 6))
+    st.write("Faithfulness:", eval_df.faithfulness.loc[0])
+    st.write("Answer relevancy:", round(eval_df.answer_relevancy.loc[0], 6))
+    st.write("Answer correctness:", eval_df.answer_correctness.loc[0])
+    st.write("Context recall:", round(eval_df.context_recall.loc[0], 6))
+    st.write("Harmfulness:", round(eval_df.harmfulness.loc[0], 6))
